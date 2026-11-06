@@ -45,6 +45,7 @@
   const safeName = s => String(s || 'Präsentation').replace(/[\\/:*?"<>|]+/g, '_').trim().slice(0, 80) || 'Präsentation';
 
   // ───────── Zustand ─────────
+  let layOpen = innerWidth > 900;
   let deck = null, curId = null, viewFmt = null, sel = null, undo = [], redo = [], saveT = 0, icCat = '', inspTab = 'folie', lineTarget = null;
   const cur = () => deck && (deck.slides.find(s => s.id === curId) || null);
   const idx = sl => deck ? deck.slides.indexOf(sl) : 0;
@@ -208,7 +209,7 @@
     const sc = Math.min(maxW / f.W, maxH / f.H), w = Math.round(f.W * sc * (devicePixelRatio || 1)), h = Math.round(f.H * sc * (devicePixelRatio || 1));
     const r = await H.render(sl, w, h, renderOpts(sl, f));
     if (tok !== stageTok) return;
-    cv.width = w; cv.height = h; cv.style.width = Math.round(f.W * sc) + 'px'; cv.style.height = Math.round(f.H * sc) + 'px';
+    cv.width = w; cv.height = h; cv.style.aspectRatio = `${f.W} / ${f.H}`;
     cv.getContext('2d').drawImage(r, 0, 0);
     drawMini(r);
     // Alle Formate nebeneinander, mit Warnung, wenn ein Text sehr klein werden musste
@@ -220,8 +221,8 @@
   }
 
   // Kleine Vorschau über dem Bearbeiten-Bereich (schmale Fenster)
-  function drawMini(r){ const m = $('#miniPrev'); if (!m || !r) return; m.width = r.width; m.height = r.height; m.getContext('2d').drawImage(r, 0, 0); }
-  async function miniPrev(){ const sl = cur(), m = $('#miniPrev'); if (!sl || !m || innerWidth > 900) return; const f = workFmt(), w = 640, h = Math.round(w * f.H / f.W);
+  function drawMini(r){ if (!r) return; $$('.mini-prev canvas').forEach(m => { m.width = r.width; m.height = r.height; m.getContext('2d').drawImage(r, 0, 0); }); }
+  async function miniPrev(){ const sl = cur(), m = $('.mini-prev canvas'); if (!sl || !m || innerWidth > 900) return; const f = workFmt(), w = 640, h = Math.round(w * f.H / f.W);
     drawMini(await H.render(sl, w, h, renderOpts(sl, f))); }
 
   // ───────── Bearbeiten ─────────
@@ -253,16 +254,26 @@
     const th = sl.dark == null ? 'auto' : sl.dark ? 'dark' : 'light';
     const t = EMBED ? HOST.times(sl) : null, ws = sl.a != null ? wordsText(words(), sl.a, sl.b) : '';
     box.innerHTML = `<div class="mini-prev"><canvas id="miniPrev"></canvas></div>
-      ${groups.map(g => `<div class="lay-group"><span>${esc(g)}</span><div class="lay-grid">${H.LAYOUTS.filter(l => l.g === g).map(l => `<button data-l="${l.k}" class="${l.k === sl.layout ? 'on' : ''}" title="${esc(l.n)}"><img alt="">${esc(l.n)}</button>`).join('')}</div></div>`).join('')}
+      <div class="lay-cur"><span class="muted small">Folie ${idx(sl) + 1} · Folienart</span><button class="btn small" id="layToggle">${esc(L.n)} ${layOpen ? '▴' : '▾ ändern'}</button></div>
+      ${layOpen ? groups.map(g => `<div class="lay-group"><span>${esc(g)}</span><div class="lay-grid">${H.LAYOUTS.filter(l => l.g === g).map(l => `<button data-l="${l.k}" class="${l.k === sl.layout ? 'on' : ''}" title="${esc(l.n)}"><img alt="">${esc(l.n)}</button>`).join('')}</div></div>`).join('') : ''}
       <div class="row wrap"><span class="muted small">Hintergrund</span><div class="seg" id="thSeg"><button data-v="auto" class="${th === 'auto' ? 'on' : ''}">abwechselnd</button><button data-v="dark" class="${th === 'dark' ? 'on' : ''}">dunkel</button><button data-v="light" class="${th === 'light' ? 'on' : ''}">hell</button></div></div>
       ${L.f.map(f => f === 'img' ? imgField(sl) : `<label class="field"><span>${esc(lbl(f))}</span>${f === 'text' || f === 'text2' ? `<textarea data-f="${f}" rows="${['liste', 'zwei', 'icons', 'prozess', 'zeitstrahl', 'checkliste', 'zahlen', 'balken'].includes(sl.layout) || f === 'text2' ? 5 : 3}"></textarea>` : `<input type="text" data-f="${f}">`}</label>`).join('')}
+      ${H.layout(sl.layout).icon === 'lines' ? '' : elemsBlock(sl)}
       ${iconField(sl)}
       <p class="muted small">Tipp: *Sternchen* um ein Wort färben es in der Akzentfarbe.</p>
       <div class="sl-link">${sl.a != null ? `⛓ verknüpft mit „${esc(ws.slice(0, 110))}${ws.length > 110 ? ' …' : ''}“${t ? ` · ${HOST.fmtTime(t.s)} – ${HOST.fmtTime(t.e)}` : ''} <button class="btn small ghost" id="unlink">lösen</button>${EMBED && t ? ' <button class="btn small ghost" id="jump">▶ anhören</button>' : ''}`
-        : EMBED ? 'nicht mit dem Text verknüpft – unten markieren und „⛓ Nur verknüpfen“, oder im Studio mit N einsetzen' : (deck.source && deck.source.text ? 'nicht mit dem Text verknüpft' : '')}</div>`;
+        : EMBED ? 'nicht mit dem Text verknüpft – unten markieren und „⛓ Nur verknüpfen“, oder im Studio mit N einsetzen' : (deck.source && deck.source.text ? 'nicht mit dem Text verknüpft' : '')}</div>
+      <div class="row wrap slide-acts"><button class="btn small" data-sa="dup">⧉ Folie duplizieren</button><button class="btn small" data-sa="new">＋ Neue Folie danach</button><button class="btn small danger" data-sa="del">✕ Folie löschen</button></div>`;
     box.querySelectorAll('[data-f]').forEach(i => { i.value = sl[i.dataset.f] || ''; });
     miniPrev();
     box.querySelectorAll('[data-l]').forEach(b => layoutPreview(b.dataset.l).then(u => { const im = b.querySelector('img'); if (im) im.src = u; }));
+  }
+  // Alles, was auf der Folie liegt, mit Entfernen-Knopf
+  function elemsBlock(sl){
+    const ic = (sl.icons || []).map((k, i) => ({k, i})).filter(x => x.k && IC.LIB.has(x.k));
+    const items = ic.map(x => `<span class="el-chip"><span class="ic">${IC.svg(x.k, 'currentColor', 'var(--acc)')}</span>${esc(IC.LIB.get(x.k).label)}<button data-icdel="${x.i}" title="Symbol entfernen" aria-label="Symbol entfernen">✕</button></span>`);
+    if (sl.img) items.push(`<span class="el-chip"><span class="ic">🖼</span>Bild<button data-imgdel title="Bild entfernen" aria-label="Bild entfernen">✕</button></span>`);
+    return `<div class="field"><span>Elemente auf dieser Folie</span>${items.length ? `<div class="el-chips">${items.join('')}</div>` : '<span class="muted small">Noch keine – Symbole kommen über „Elemente“ oder die Vorschläge.</span>'}</div>`;
   }
   function imgField(sl){
     const pos = sl.imgPos || {x: 0.5, y: 0.5};
@@ -274,8 +285,7 @@
     const L = H.layout(sl.layout), sv = k => IC.svg(k, 'currentColor', 'var(--acc)');
     if (L.icon === 'one'){
       const k = (sl.icons || [])[0], sg = IC.suggest(H.plain(sl.title + ' ' + sl.text + ' ' + sl.kicker)).filter(x => x !== k).slice(0, 8);
-      return `<div class="field"><span>Symbol</span>${k ? `<div class="ic-slot"><span class="ic">${sv(k)}</span><span class="t">${esc(IC.LIB.get(k)?.label || k)}</span><button data-icdel="0" title="Symbol entfernen">✕</button></div>`
-        : `<div class="ic-slot empty-slot"><span class="t">Kein Symbol – unten einen Vorschlag wählen oder im Reiter „Elemente“</span></div>`}
+      return `<div class="field"><span>${k ? 'Symbol tauschen' : 'Symbol hinzufügen'}</span>
         ${sg.length ? `<div class="sugg">${sg.map(x => `<button data-icset="${x}" title="${esc(IC.LIB.get(x).label)}">${sv(x)}</button>`).join('')}</div>` : ''}
         <button class="btn small ghost" data-goto-lib>Alle Symbole …</button></div>`;
     }
@@ -315,6 +325,8 @@
     $('#icCats').innerHTML = ['', ...IC.CATS].map(c => `<button data-c="${esc(c)}" class="${c === icCat ? 'on' : ''}">${c || 'Alle'}</button>`).join('');
     const sl = cur(), L = sl && H.layout(sl.layout);
     $('#icHint').textContent = !sl ? '' : L.icon === 'one' ? 'Antippen setzt das Symbol neben den Text der Folie.' : L.icon === 'lines' ? (lineTarget != null ? `Antippen setzt das Symbol in Zeile ${lineTarget + 1}.` : 'Antippen setzt das Symbol in die nächste Zeile ohne Symbol – sonst kommt eine neue Zeile dazu.') : 'Diese Folienart hat keinen Symbol-Platz – beim Antippen wechselt sie auf eine passende Art.';
+    $('#icOnSlide').innerHTML = sl ? `<div class="mini-prev"><canvas></canvas></div>${elemsBlock(sl)}` : '';
+    miniPrev();
     $('#icGrid').innerHTML = list.map(i => `<button data-ic="${i.k}" title="${esc(i.label)}"><span class="svgw">${IC.svg(i.k, 'currentColor', 'var(--acc)')}</span><span>${esc(i.label)}</span></button>`).join('') || '<p class="muted small">Nichts gefunden.</p>';
   }
 
@@ -564,6 +576,12 @@
   $('#srcSuggest').onclick = suggestFromText;
   $('#srcEdit').onclick = editSourceText;
   $$('[data-to]').forEach(b => b.onclick = () => takeSel(b.dataset.to));
+  $('#stage').onclick = () => { if (!cur()) return; if (innerWidth <= 900){ inspTab = 'folie'; renderInsp(); mobPane('paneInsp'); } else { const f = $('#inspFolie [data-f]'); inspTab = 'folie'; renderInsp(); const g = $('#inspFolie [data-f]'); if (g) g.focus(); void f; } };
+  $('#mobEdit').onclick = () => { inspTab = 'folie'; renderInsp(); mobPane('paneInsp'); };
+  // Elemente-Reiter: Symbol oder Bild von der Folie entfernen
+  $('#inspElemente').addEventListener('click', e => { const sl = cur(); if (!sl) return;
+    const del = e.target.closest('[data-icdel]'); if (del){ commit(() => { sl.icons = (sl.icons || []).slice(); sl.icons[+del.dataset.icdel] = null; while (sl.icons.length && !sl.icons[sl.icons.length - 1]) sl.icons.pop(); }); return; }
+    if (e.target.closest('[data-imgdel]')) commit(() => { sl.img = null; }); });
   $('#inspTabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; inspTab = b.dataset.t; renderInsp(); };
   $('#icSearch').oninput = renderLib;
   $('#icCats').onclick = e => { const b = e.target.closest('[data-c]'); if (!b) return; icCat = b.dataset.c; renderLib(); };
@@ -576,7 +594,7 @@
   $('#slList').addEventListener('click', e => {
     const it = e.target.closest('.sl-item'); if (!it) return;
     const sl = deck.slides.find(s => s.id === it.dataset.id), act = e.target.closest('[data-a]');
-    if (!act){ curId = sl.id; lineTarget = null; renderAll(); if (innerWidth <= 900) mobPane('paneStage'); return; }
+    if (!act){ curId = sl.id; lineTarget = null; renderAll(); if (innerWidth <= 900) mobPane('paneInsp'); return; }
     const k = idx(sl), a = act.dataset.a;
     commit(() => {
       if (a === 'up' && k > 0) deck.slides.splice(k - 1, 0, deck.slides.splice(k, 1)[0]);
@@ -613,7 +631,7 @@
   });
   $('#inspFolie').addEventListener('click', e => {
     const sl = cur(); if (!sl) return;
-    const l = e.target.closest('[data-l]'); if (l){ commit(() => { sl.layout = l.dataset.l; }); return; }
+    const l = e.target.closest('[data-l]'); if (l){ if (innerWidth <= 900) layOpen = false; commit(() => { sl.layout = l.dataset.l; }); return; }
     const th = e.target.closest('#thSeg button'); if (th){ commit(() => { sl.dark = th.dataset.v === 'auto' ? null : th.dataset.v === 'dark'; }); layThumbs.clear(); return; }
     const set = e.target.closest('[data-icset]'); if (set){ commit(() => { sl.icons = [set.dataset.icset]; }); return; }
     const del = e.target.closest('[data-icdel]'); if (del){ e.stopPropagation(); commit(() => { sl.icons = (sl.icons || []).slice(); sl.icons[+del.dataset.icdel] = null; while (sl.icons.length && !sl.icons[sl.icons.length - 1]) sl.icons.pop(); }); return; }
@@ -622,7 +640,16 @@
     if (e.target.id === 'icAuto'){ const ls = String(sl.text || '').split('\n').map(x => x.trim()).filter(Boolean);
       commit(() => { sl.icons = ls.map((t, i) => (sl.icons || [])[i] || IC.suggest(t)[0] || null); }); if (!ls.length) toast('Erst Zeilen eintragen'); return; }
     if (e.target.id === 'imgPick'){ if (EMBED) HOST.pickImage().then(uri => { if (uri) commit(() => { sl.img = uri; }); }); else $('#imgIn').click(); return; }
-    if (e.target.id === 'imgDel'){ commit(() => { sl.img = null; }); return; }
+    if (e.target.id === 'imgDel' || e.target.closest('[data-imgdel]')){ commit(() => { sl.img = null; }); return; }
+    if (e.target.id === 'layToggle'){ layOpen = !layOpen; renderInsp(); return; }
+    const sa = e.target.closest('[data-sa]');
+    if (sa){ const k = idx(sl);
+      if (sa.dataset.sa === 'del' && !confirm(`Folie ${k + 1} löschen?`)) return;
+      commit(() => {
+        if (sa.dataset.sa === 'dup'){ const c = {...clone(sl), id: H.uid(), a: null, b: null}; delete c.media; delete c.mediaKey; deck.slides.splice(k + 1, 0, c); curId = c.id; }
+        if (sa.dataset.sa === 'new'){ const n = H.newSlide(); deck.slides.splice(k + 1, 0, n); curId = n.id; }
+        if (sa.dataset.sa === 'del'){ deck.slides.splice(k, 1); curId = (deck.slides[Math.min(k, deck.slides.length - 1)] || {}).id || null; }
+      }); toast(sa.dataset.sa === 'del' ? 'Folie gelöscht – Rückgängig mit ↶' : sa.dataset.sa === 'dup' ? 'Folie dupliziert' : 'Neue Folie angelegt'); return; }
     const fit = e.target.closest('#imgFit button'); if (fit){ commit(() => { sl.imgFit = fit.dataset.v; }); return; }
     const px = e.target.closest('#imgPosX button'), py = e.target.closest('#imgPosY button');
     if (px || py){ commit(() => { const p = {...(sl.imgPos || {x: 0.5, y: 0.5})}; if (px) p.x = +px.dataset.v; if (py) p.y = +py.dataset.v; sl.imgPos = p; }); return; }

@@ -59,12 +59,14 @@
       <div class="stage"><canvas id="stage"></canvas></div>
       <div class="fmt-strip" id="fmtStrip"></div>
       <p class="muted small fmt-note" id="fmtNote"></p>
+      <button class="btn primary mob-edit" id="mobEdit">✎ Diese Folie bearbeiten</button>
     </main>
 
     <aside class="pane insp-pane" id="paneInsp">
       <div class="tabs" id="inspTabs"><button data-t="folie" class="on">Folie</button><button data-t="elemente">Elemente</button></div>
       <div id="inspFolie" class="insp-body"></div>
       <div id="inspElemente" class="insp-body hidden">
+        <div id="icOnSlide"></div>
         <input type="search" id="icSearch" placeholder="Symbol suchen – z. B. Streik, Miete, Polizei">
         <div class="chips" id="icCats"></div>
         <p class="muted small" id="icHint"></p>

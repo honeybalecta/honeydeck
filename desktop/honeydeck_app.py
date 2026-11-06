@@ -115,6 +115,43 @@ def free_port(start=8790):
     return 0
 
 
+def fenster_einrichten(fenster, titel: str, maximieren: bool):
+    """Fenster mittig auf den Bildschirm setzen und auf Wunsch maximieren.
+
+    Windows legt neue Fenster sonst versetzt nach rechts unten ab. Läuft über die Win32-Funktionen,
+    damit Position und Größe bei jeder Bildschirmskalierung in denselben (physischen) Pixeln gerechnet werden."""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+        u = ctypes.windll.user32
+        hwnd = 0
+        try:
+            hwnd = int(fenster.native.Handle.ToInt64())
+        except Exception:  # noqa: BLE001
+            hwnd = u.FindWindowW(None, titel)
+        if not hwnd:
+            return
+
+        class MONITORINFO(ctypes.Structure):
+            _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT), ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]
+
+        r = wintypes.RECT()
+        u.GetWindowRect(hwnd, ctypes.byref(r))
+        mi = MONITORINFO()
+        mi.cbSize = ctypes.sizeof(MONITORINFO)
+        u.GetMonitorInfoW(u.MonitorFromWindow(hwnd, 2), ctypes.byref(mi))   # 2 = nächster Bildschirm
+        a = mi.rcWork
+        aw, ah = a.right - a.left, a.bottom - a.top
+        w, h = min(r.right - r.left, int(aw * 0.94)), min(r.bottom - r.top, int(ah * 0.94))
+        u.SetWindowPos(hwnd, 0, a.left + (aw - w) // 2, a.top + (ah - h) // 2, w, h, 0x0004 | 0x0010)   # ohne Z-Reihenfolge/Aktivierung
+        if maximieren:
+            u.ShowWindow(hwnd, 3)   # SW_MAXIMIZE
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def main():
     if not (WEB_DIR / "index.html").is_file():
         fail(f"Oberfläche nicht gefunden: {WEB_DIR}")
@@ -136,6 +173,7 @@ def main():
         url += "#open=" + base64.urlsafe_b64encode(str(Path(sys.argv[1]).resolve()).encode()).decode()
     api.window = webview.create_window(TITLE, url, js_api=api, width=1440, height=900, min_size=(900, 600),
                                        background_color="#131312", text_select=False)
+    api.window.events.shown += lambda: fenster_einrichten(api.window, TITLE, True)
     webview.start(private_mode=False, storage_path=str(DATA / "webview"))
 
 
