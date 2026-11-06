@@ -14,7 +14,7 @@ DefaultDirName={localappdata}\Programs\HoneyDeck
 DefaultGroupName=HoneyDeck
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
-OutputDir=..\..\dist
+OutputDir=..\dist
 OutputBaseFilename=HoneyDeck-Setup-{#AppVersion}
 SetupIconFile=honeydeck.ico
 UninstallDisplayIcon={app}\HoneyDeck.exe
@@ -32,7 +32,7 @@ Name: "de"; MessagesFile: "compiler:Languages\German.isl"
 Name: "desktopicon"; Description: "Symbol auf dem Desktop anlegen"; GroupDescription: "Zusätzlich:"
 
 [Files]
-Source: "..\..\dist\HoneyDeck\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\dist\HoneyDeck\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Oberfläche zusätzlich als offener Ordner – für HoneyCut
 Source: "..\dist-web\*"; DestDir: "{app}\web"; Flags: ignoreversion recursesubdirs createallsubdirs
 

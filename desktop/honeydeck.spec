@@ -1,5 +1,5 @@
 # PyInstaller-Bauplan für HoneyDeck (Windows, Ordner-Build)
-# Vorher: python deck/build.py deck/dist-web    Aufruf: pyinstaller deck/desktop/honeydeck.spec
+# Vorher: python build.py dist-web    Aufruf: pyinstaller desktop/honeydeck.spec
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_all
 

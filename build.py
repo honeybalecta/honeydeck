@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 """Stellt HoneyDeck als fertigen Ordner zusammen (Web-Seite, Android-Assets, Windows-Programm).
 
-Aufruf: python3 deck/build.py ZIELORDNER
-Kopiert deck/web, die Schriften aus core/web/fonts und erzeugt die PNG-Symbole aus icon.svg (falls Pillow+cairosvg fehlen,
-werden die mitgelieferten PNGs verwendet)."""
+Aufruf: python3 build.py ZIELORDNER
+Kopiert web/ und die Schriften aus fonts/ in einen Ordner."""
 import shutil, sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "deck" / "web"
-OUT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT / "deck-site"
-VERSION = (ROOT / "deck" / "version.txt").read_text().strip()
+ROOT = Path(__file__).resolve().parent
+SRC = ROOT / "web"
+OUT = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT / "site"
+VERSION = (ROOT / "version.txt").read_text().strip()
 
 shutil.rmtree(OUT, ignore_errors=True)
 OUT.mkdir(parents=True)
@@ -19,7 +18,7 @@ for f in SRC.iterdir():
         shutil.copy(f, OUT / f.name)
 fonts = OUT / "fonts"
 fonts.mkdir()
-for f in (ROOT / "core" / "web" / "fonts").iterdir():
+for f in (ROOT / "fonts").iterdir():
     if f.suffix.lower() in (".ttf", ".otf", ".txt", ".md"):
         shutil.copy(f, fonts / f.name)
 eng = OUT / "deck-engine.js"

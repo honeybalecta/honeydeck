@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+site/
+_site/
+dist/
+dist-web/
+build/
+build-deck/
+android/app/src/main/assets/
+android/.gradle/
+android/app/build/
+android/build/

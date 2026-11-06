@@ -5,7 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-val hdVersion = providers.environmentVariable("HD_VERSION").getOrElse("1.0.0").removePrefix("v").removePrefix("deck-v").removePrefix("deck-android-v")
+val hdVersion = providers.environmentVariable("HD_VERSION").getOrElse("1.0.0").removePrefix("android-v").removePrefix("v")
 val hdCode = providers.environmentVariable("HD_VERSION_CODE").getOrElse("1").toInt()
 
 android {
@@ -42,7 +42,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    // Die Oberfläche (deck/web + Schriften) legt deck/build.py vor dem Bauen nach src/main/assets/deck
+    // Die Oberfläche (web/ + Schriften) legt build.py vor dem Bauen nach src/main/assets/deck
 }
 
 kotlin { compilerOptions { jvmTarget.set(JvmTarget.JVM_17) } }

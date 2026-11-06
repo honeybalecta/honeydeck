@@ -7,9 +7,9 @@ HoneyDeck läuft eigenständig (Windows, Android, Browser) und, wenn es installi
 
 | Plattform | eigenständig | in HoneyCut |
 |---|---|---|
-| Windows | `HoneyDeck-Setup-x.y.z.exe` (Release `deck-v…`) | HoneyCut findet HoneyDeck über den Registry-Eintrag, den der Installer setzt |
-| Android | `HoneyDeck-Android-x.y.z.apk` (Release `deck-android-v…`) | HoneyCut lädt die Oberfläche aus der installierten HoneyDeck-App |
-| Web | `honeybalecta.github.io/textschnitt/deck/` | immer dabei, gleiche Seite wie HoneyCut |
+| Windows | `HoneyDeck-Setup-x.y.z.exe` (Release `v…`) | HoneyCut findet HoneyDeck über den Registry-Eintrag, den der Installer setzt |
+| Android | `HoneyDeck-Android-x.y.z.apk` (Release `android-v…`) | HoneyCut lädt die Oberfläche aus der installierten HoneyDeck-App |
+| Web | `honeybalecta.github.io/honeydeck/` | HoneyCut im Browser lädt es von dort |
 
 Ohne HoneyDeck bleibt der eingebaute Folien-Reiter von HoneyCut unverändert.
 
@@ -64,8 +64,9 @@ JSON, UTF-8. Alles außer `app` und `slides` ist optional.
 
 ## Entwicklung
 
-- `deck/web/` – Oberfläche: `deck-engine.js` (Folienarten, Formate, Text→Folien, Zuordnung zum Transkript), `deck-icons.js` (Piktogramme), `deck-io.js` (ZIP, PDF, Importe), `deck-app.js` (Editor)
-- `deck/build.py ZIEL` – stellt die Oberfläche samt Schriften zusammen (Web, Android, Windows)
-- `deck/android/` – Android-App (WebView), `deck/desktop/` – Windows-Programm (pywebview) und Installer
-- `core/web/deck-host.js` – Schnittstelle in HoneyCut (`window.HC_DECK_HOST`)
-- Builds: `.github/workflows/build-deck.yml` (Android + Windows), die Web-Version baut `build-web.yml` mit
+- `web/` – Oberfläche: `deck-engine.js` (Folienarten, Formate, Text→Folien, Zuordnung zum Transkript), `deck-icons.js` (Piktogramme), `deck-io.js` (ZIP, PDF, Importe), `deck-app.js` (Editor)
+- `fonts/` – Schriften (dieselben wie in HoneyCut, Lizenzen in `fonts/LIZENZ.md`)
+- `build.py ZIEL` – stellt Oberfläche und Schriften zusammen (Web, Android, Windows)
+- `android/` – Android-App (WebView, Paket `de.honeybalecta.honeydeck`), `desktop/` – Windows-Programm (pywebview) und Installer
+- Die Schnittstelle in HoneyCut ist `core/web/deck-host.js` im Repo honeybalecta/textschnitt (`window.HC_DECK_HOST`)
+- Builds: `.github/workflows/build.yml` (Android + Windows, Releases `android-v…` und `v…`), `pages.yml` (Web)
