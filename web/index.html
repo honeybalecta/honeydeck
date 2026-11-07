@@ -15,8 +15,8 @@
   <header class="bar">
     <div class="brand"><img src="icon.svg" alt="">HoneyDeck</div>
     <span class="grow"></span>
-    <button class="btn ghost" id="homeImport" title="Text, Transkript, Word, PowerPoint, HTML-Folien, Bilder oder .honeydeck">⤓ Importieren</button>
-    <button class="btn primary" id="homeNew">＋ Neue Präsentation</button>
+    <button class="btn ghost" id="homeImport" title="Text, Transkript, Word, PowerPoint, HTML-Folien, Bilder oder .honeydeck">⤓<span class="d-only"> Importieren</span></button>
+    <button class="btn primary" id="homeNew">＋ Neu<span class="d-only">e Präsentation</span></button>
   </header>
   <div class="home-body">
     <div id="deckList" class="deck-grid"></div>
@@ -32,7 +32,7 @@
   <header class="bar ed-bar">
     <button class="icon-btn" id="edBack" title="Zur Übersicht">‹</button>
     <input id="edName" class="name-in" spellcheck="false" aria-label="Name der Präsentation">
-    <div class="bar-group">
+    <div class="bar-group d-only">
       <label class="sel-lbl" id="fmtWrap" title="Arbeitsformat – exportieren lässt sich in jedes Format"><span>Format</span><select id="edFmt"></select></label>
       <label class="sel-lbl" title="Designprofil: Farben, Schriften, Anordnung"><span>Design</span><select id="edProf"></select></label>
       <button class="icon-btn acc-btn" id="edAcc" title="Farbe der Präsentation" aria-label="Farbe der Präsentation"><i></i></button>
@@ -40,24 +40,26 @@
       <button class="icon-btn" id="profNew" title="Neues Designprofil">＋</button>
     </div>
     <span class="grow"></span>
-    <span class="saved" id="saved"></span>
+    <span class="saved d-only" id="saved"></span>
     <button class="icon-btn" id="undoBtn" title="Rückgängig (Strg+Z)">↶</button>
     <button class="icon-btn" id="redoBtn" title="Wiederholen (Strg+Umschalt+Z)">↷</button>
-    <button class="btn ghost" id="edImport" title="Text, Transkript oder Folien hinzufügen">⤓ Import</button>
-    <button class="btn" id="edExport" title="Bilder, PDF oder .honeydeck">⤒ Export</button>
-    <span class="embed-only place-wrap"><label class="chk small" title="Jede Folie bleibt stehen, bis die nächste beginnt"><input type="checkbox" id="gapless" checked> lückenlos</label>
+    <button class="btn ghost d-only" id="edImport" title="Text, Transkript oder Folien hinzufügen">⤓ Import</button>
+    <button class="btn d-only" id="edExport" title="Bilder, PDF oder .honeydeck">⤒ Export</button>
+    <span class="embed-only place-wrap d-only"><label class="chk small" title="Jede Folie bleibt stehen, bis die nächste beginnt"><input type="checkbox" id="gapless" checked> lückenlos</label>
       <label class="chk small" title="Unten bleibt Platz für Untertitel"><input type="checkbox" id="subSafe"> Platz für Untertitel</label>
       <button class="btn primary" id="placeBtn" title="Alle verknüpften Folien an ihrer Stelle als B-Roll einsetzen">Als B-Roll einsetzen</button></span>
+    <button class="icon-btn c-only more-btn" id="edMore" title="Format, Design, Farbe, Import und Export" aria-label="Mehr">⋯</button>
   </header>
 
   <div class="ed-body" id="edBody">
     <aside class="pane list-pane" id="paneList">
-      <div class="pane-head"><b>Folien</b><span class="muted small" id="slCount"></span><span class="grow"></span><button class="btn small" id="slAdd" title="Leere Folie nach der ausgewählten">＋ Folie</button></div>
+      <div class="pane-head"><b>Folien</b><span class="muted small" id="slCount"></span><span class="grow"></span><button class="btn small embed-only c-only primary" id="placeBtn2">Als B-Roll einsetzen</button><button class="btn small" id="slAdd" title="Leere Folie nach der ausgewählten">＋ Folie</button><button class="icon-btn embed-only c-only more-btn" id="lMore" aria-label="Design, Farbe, Einsetzen, Import und Export">⋯</button></div>
       <div id="slList" class="sl-list"></div>
     </aside>
 
     <main class="pane stage-pane" id="paneStage">
       <div class="stage"><canvas id="stage"></canvas></div>
+      <div class="c-nav c-only"><button class="icon-btn" id="cPrev" aria-label="Vorige Folie">‹</button><span id="cPos"></span><span class="grow"></span><button class="c-fmt" id="cFmt"></button><button class="icon-btn embed-only c-only more-btn" id="cMore" aria-label="Design, Farbe, Einsetzen, Import und Export">⋯</button><button class="icon-btn" id="cNext" aria-label="Nächste Folie">›</button></div>
       <div class="fmt-strip" id="fmtStrip"></div>
       <p class="muted small fmt-note" id="fmtNote"></p>
       <button class="btn primary mob-edit" id="mobEdit">✎ Diese Folie bearbeiten</button>
@@ -68,8 +70,8 @@
       <div id="inspFolie" class="insp-body"></div>
       <div id="inspElemente" class="insp-body hidden">
         <div id="icOnSlide"></div>
-        <input type="search" id="icSearch" placeholder="Symbol suchen – z. B. Streik, Miete, Polizei">
-        <select id="icCats" class="ic-cats" aria-label="Kategorie"></select>
+        <div class="ic-search"><input type="search" id="icSearch" placeholder="Symbol suchen – z. B. Streik, Miete, Polizei">
+        <select id="icCats" class="ic-cats" aria-label="Kategorie"></select></div>
         <p class="muted small" id="icHint"></p>
         <div id="icGrid"></div>
       </div>
@@ -78,13 +80,17 @@
     <section class="pane src-pane" id="paneSrc">
       <div class="pane-head">
         <b id="srcTitle">Text</b>
-        <span class="muted small sel-info" id="selInfo"></span>
-        <span class="grow"></span>
-        <button class="btn small" data-to="new" title="Aus der Markierung eine neue Folie machen">→ Neue Folie</button>
-        <button class="btn small" data-to="title" title="Markierung als Titel der ausgewählten Folie">→ Titel</button>
-        <button class="btn small" data-to="text" title="Markierung an den Text anhängen">→ Text</button>
-        <button class="btn small" data-to="bullet" title="Markierung als Stichpunkt">→ Stichpunkt</button>
-        <button class="btn small" data-to="link" title="Nur festlegen, an welcher Stelle die Folie läuft">⛓ Nur verknüpfen</button>
+        <div class="src-acts" id="srcActs">
+          <span class="muted small sel-info" id="selInfo"></span>
+          <span class="grow"></span>
+          <button class="btn small primary-c" data-to="new" title="Aus der Markierung eine neue Folie machen">→ Neue Folie</button>
+          <button class="btn small" data-to="title" title="Markierung als Titel der ausgewählten Folie">→ Titel</button>
+          <button class="btn small" data-to="text" title="Markierung an den Text anhängen">→ Text</button>
+          <button class="btn small" data-to="bullet" title="Markierung als Stichpunkt">→ Stichpunkt</button>
+          <button class="btn small" data-to="link" title="Nur festlegen, an welcher Stelle die Folie läuft">⛓ Verknüpfen</button>
+          <button class="btn small c-only" id="selSentence" title="Markierung auf ganze Sätze erweitern">Ganzer Satz</button>
+          <button class="btn small ghost c-only" id="selClear" aria-label="Markierung aufheben">✕</button>
+        </div>
         <button class="btn small" id="srcSuggest" title="Je Satz eine Folie – als Entwurf">✨ Grundlage aus dem Text</button>
         <button class="btn small ghost standalone-only" id="srcEdit" title="Text einfügen oder ersetzen">✎ Text</button>
       </div>
@@ -93,7 +99,10 @@
   </div>
 
   <nav class="mob-tabs" id="mobTabs">
-    <button data-p="paneList">Folien</button><button data-p="paneStage" class="on">Vorschau</button><button data-p="paneInsp">Bearbeiten</button><button data-p="paneSrc">Text</button>
+    <button data-t="list"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="7" height="6" rx="1"/><rect x="14" y="4" width="7" height="6" rx="1"/><rect x="3" y="14" width="7" height="6" rx="1"/><rect x="14" y="14" width="7" height="6" rx="1"/></svg><span>Folien</span></button>
+    <button data-t="folie" class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg><span>Folie</span></button>
+    <button data-t="sym"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="4"/><path d="M14 20l3.5-7 3.5 7z"/><rect x="4" y="15" width="6" height="6" rx="1"/><path d="M16 4h5v5h-5z"/></svg><span>Symbole</span></button>
+    <button data-t="src"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 11h16M4 16h10"/></svg><span>Text</span></button>
   </nav>
 </section>
 

@@ -170,41 +170,6 @@ body.embed .standalone-only{display:none!important}
 #toast.on{opacity:1;transform:translateX(-50%)}
 .drop-hint{position:fixed;inset:0;border:3px dashed var(--acc);background:#E5402A14;z-index:70;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;pointer-events:none}
 
-/* Schmale Bildschirme: eine Fläche, unten umschalten */
-@media (max-width:900px){
-  .bar{padding:6px 8px;gap:6px;min-height:48px}
-  .ed-bar .sel-lbl span,.ed-bar .saved{display:none}
-  .name-in{max-width:46vw}
-  .ed-body,.ed-body.no-src{display:block;position:relative}
-  .ed-body>.pane{position:absolute;inset:0;display:none;border:0}
-  .ed-body>.pane.mob-on{display:flex}
-  .mob-tabs{display:flex;border-top:1px solid var(--line);background:var(--bg);padding-bottom:env(safe-area-inset-bottom)}
-  .mob-tabs button{flex:1;background:none;border:0;padding:12px 4px;color:var(--mute);font-weight:600;border-top:2px solid transparent}
-  .mob-tabs button.on{color:var(--fg);border-top-color:var(--acc)}
-  .stage-pane{padding:10px}
-  .place-wrap{width:100%;justify-content:flex-end}
-  .sl-acts{display:flex}
-  .src-pane .pane-head{gap:4px}
-  .pe{grid-template-columns:1fr}
-}
-
-/* Mittlere Breite (z. B. eingebettet in HoneyCut): Folienliste links, rechts umschaltbar */
-@media (min-width:601px) and (max-width:900px){
-  .ed-body,.ed-body.no-src{display:grid;grid-template-columns:150px minmax(0,1fr);grid-template-rows:minmax(0,1fr);grid-template-areas:"list main"}
-  .ed-body>.pane{position:static;grid-area:main}
-  .ed-body>.list-pane{display:flex;grid-area:list;border-right:1px solid var(--line)}
-  .list-pane .sl-item{flex-direction:column;gap:4px}
-  .list-pane .sl-item img{width:100%;max-height:none}
-  .mob-tabs button[data-p=paneList]{display:none}
-}
-.mini-prev{display:none}
-@media (max-width:900px){
-  .mini-prev{display:flex;justify-content:center;background:#0E0E0D;border-radius:8px;padding:8px}
-  .mini-prev canvas{display:block;max-width:100%;max-height:32vh;width:auto;height:auto;object-fit:contain;border-radius:2px}
-  body.embed .ed-bar #edBack,body.embed .ed-bar .name-in{display:none}
-}
-body.embed .ed-bar .name-in{pointer-events:none}
-
 /* Folienart einklappbar, Elemente mit Entfernen, Folien-Aktionen */
 .lay-cur{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .el-chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -215,23 +180,144 @@ body.embed .ed-bar .name-in{pointer-events:none}
 .el-chip button:hover{border-color:var(--acc);color:var(--acc)}
 .btn.danger{border-color:#E5402A66;color:#F08A7A}
 .slide-acts{padding-top:6px;border-top:1px solid var(--line)}
-.mob-edit{display:none;align-self:center}
 #icOnSlide{display:flex;flex-direction:column;gap:8px}
 #icOnSlide:empty{display:none}
-@media (max-width:900px){
-  .mob-edit{display:inline-block}
-  .ic-slot button,.el-chip button{min-width:32px;min-height:32px}
-}
-/* Flache Fenster (Handy quer): eine Zeile oben, kompakte Reiter */
-@media (max-height:520px){
-  .bar{flex-wrap:nowrap;overflow-x:auto;min-height:44px;padding:4px 8px;scrollbar-width:none}
-  .bar .btn{padding:5px 9px}
-  .mob-tabs button{padding:8px 4px}
-  .fmt-strip img{height:36px}
-  .fmt-note{display:none}
-  .stage-pane{padding:6px;gap:6px}
-  .mini-prev canvas{max-height:36vh}
-}
+.mini-prev,.mob-edit{display:none!important}
+.src-acts{display:contents}
+.ic-search{display:flex;flex-direction:column;gap:8px}
+.c-only{display:none!important}
+body.embed .ed-bar .name-in{pointer-events:none}
+.sl-more{display:none}
+
+/* ═════════ Handy und schmale Fenster (body.compact, per JS gesetzt) ═════════
+   Oben eine Zeile, die Folie immer sichtbar, unten vier Reiter ohne Unter-Reiter.
+   Hochformat: Folie oben, darunter der Reiter. Querformat (body.two): Folie links, Reiter rechts. */
+body.compact .d-only{display:none!important}
+body.compact .c-only{display:revert!important}
+body.compact .c-nav.c-only{display:flex!important}
+body.compact:not(.embed) .embed-only{display:none!important}
+body.compact{font-size:15px}
+body.compact .bar{padding:4px 6px;gap:2px;min-height:50px;flex-wrap:nowrap;padding-top:max(4px,env(safe-area-inset-top))}
+body.compact .icon-btn{width:42px;height:42px}
+body.compact .name-in{max-width:none;flex:1;min-width:0;font-size:16px;padding:6px 6px}
+body.compact .more-btn{font-size:24px;font-weight:700;letter-spacing:1px}
+body.embed.compact .ed-bar #edBack,body.embed.compact .ed-bar .name-in{display:none!important}
+/* Eingebettet in HoneyCut: keine eigene Kopfleiste (HoneyCut hat Rückgängig), Reiter oben statt unten – unten liegen schon die HoneyCut-Reiter */
+body.embed.compact .ed-bar{display:none}
+body.embed.compact .mob-tabs{order:-1;border-top:0;border-bottom:1px solid var(--line);padding-bottom:0;background:var(--bg)}
+body.embed.compact .mob-tabs button{flex-direction:row;justify-content:center;gap:6px;padding:11px 2px;font-size:13px}
+body.embed.compact .mob-tabs svg{width:18px;height:18px}
+body.embed.compact .mob-tabs button.on::before{top:auto;bottom:0;border-radius:2px 2px 0 0}
+body.embed.compact #toast{bottom:20px}
+body.embed.compact .c-nav .more-btn{font-size:22px}
+
+/* Fläche */
+body.compact .ed-body,body.compact .ed-body.no-src{display:flex;flex-direction:column;grid-template-areas:none}
+body.compact .ed-body>.pane{display:none;border:0;flex:1;min-height:0}
+body.compact .ed-body>.pane.mob-on{display:flex}
+body.compact #paneStage{display:flex;flex:none;height:min(40vh,calc((100vw - 16px) * var(--ar,.5625) + 56px));padding:8px 8px 0;gap:0;border-bottom:1px solid var(--line)}
+body.compact[data-ctab=list]:not(.two) #paneStage{display:none}
+body.compact .stage canvas{box-shadow:0 3px 14px #0008}
+body.compact .fmt-strip,body.compact .fmt-note{display:none}
+body.compact #paneStage.fmt-open{height:auto;max-height:70vh;overflow:auto}
+body.compact #paneStage.fmt-open .stage{height:min(30vh,calc((100vw - 16px) * var(--ar,.5625)));flex:none}
+body.compact #paneStage.fmt-open .fmt-strip{display:flex;padding:8px 0}
+body.compact #paneStage.fmt-open .fmt-note{display:block;padding:0 4px 8px}
+.c-nav{align-items:center;gap:4px;height:48px;flex:none}
+.c-nav .icon-btn{font-size:26px;line-height:1}
+.c-nav .icon-btn:disabled{opacity:.25}
+#cPos{font-weight:600;font-size:14px;white-space:nowrap}
+#cPos small{font-weight:400;color:var(--mute);margin-left:6px}
+.c-fmt{background:var(--p1);border:1px solid var(--line);border-radius:20px;padding:6px 12px;font-size:12px;color:var(--mute);cursor:pointer;white-space:nowrap}
+.c-fmt.bad{color:#F0B44C;border-color:#F0B44C66}
+.c-fmt.ok::before{content:"✓ ";color:var(--ok)}
+
+/* Querformat: Folie links, Bearbeiten rechts */
+body.compact.two .ed-body{display:grid;grid-template-columns:minmax(0,47%) minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
+body.compact.two #paneStage{height:auto;grid-column:1;grid-row:1;border-bottom:0;border-right:1px solid var(--line);padding:8px}
+body.compact.two .ed-body>.pane.mob-on{grid-column:2;grid-row:1}
+body.compact.two #paneStage.fmt-open .stage{height:auto;flex:1;min-height:90px}
+
+/* Reiter unten */
+body.compact .mob-tabs{display:flex;border-top:1px solid var(--line);background:var(--p1);padding-bottom:env(safe-area-inset-bottom)}
+.mob-tabs button{flex:1;background:none;border:0;padding:7px 2px 6px;color:var(--mute);font-size:11px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;position:relative}
+.mob-tabs svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round}
+.mob-tabs button.on{color:var(--fg)}
+.mob-tabs button.on::before{content:"";position:absolute;top:0;left:28%;right:28%;height:2px;background:var(--acc);border-radius:0 0 2px 2px}
+.mob-tabs button.dot::after{content:"";position:absolute;top:6px;right:calc(50% - 18px);width:7px;height:7px;border-radius:50%;background:var(--acc)}
+body.compact.two .mob-tabs button{flex-direction:row;justify-content:center;gap:6px;padding:6px 2px;font-size:12px}
+body.compact.two .mob-tabs svg{width:18px;height:18px}
+body.compact #toast{bottom:calc(76px + env(safe-area-inset-bottom));font-size:13px;padding:8px 14px;max-width:min(86vw,460px)}
+body.compact.two #toast{bottom:56px}
+
+/* Eingaben: größer, gut zu treffen */
+body.compact input[type=text],body.compact input[type=search],body.compact input:not([type]),body.compact textarea,body.compact select{font-size:16px;padding:10px 11px;border-radius:8px}
+body.compact .btn{padding:10px 14px;border-radius:9px}
+body.compact .btn.small{padding:8px 12px;font-size:13px}
+body.compact .seg button{padding:9px 12px;font-size:13px}
+body.compact .field>span{font-size:13px}
+body.compact .insp-body{padding:12px 12px 24px;gap:16px}
+body.compact #inspTabs{display:none}
+body.compact .pane-head{padding:8px 10px;gap:8px;flex-wrap:nowrap}
+body.compact .el-chip{padding:4px 5px 4px 10px;font-size:13px}
+body.compact .ic-slot button,body.compact .el-chip button{min-width:36px;min-height:36px}
+body.compact .dt-hi,body.compact .dt-del{width:38px;height:40px}
+body.compact .dtab input{min-width:64px;padding:9px 8px!important;font-size:15px}
+body.compact .dtab td:nth-child(2) input{min-width:96px}
+body.compact .lay-cur{background:var(--p1);border:1px solid var(--line);border-radius:10px;padding:6px 6px 6px 12px}
+body.compact .lay-cur .btn{font-weight:600}
+
+/* Folien: Raster mit großen Vorschauen */
+body.compact .sl-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));align-content:start;gap:10px;padding:10px}
+body.compact .sl-item{flex-direction:column;gap:6px;padding:6px;border-width:2px;border-radius:10px}
+body.compact .sl-item img{width:100%;max-height:none;aspect-ratio:var(--ar-inv,16/9);object-fit:contain}
+body.compact .sl-meta{flex-direction:row;flex-wrap:wrap;gap:2px 8px;padding:0 34px 0 2px;font-size:12px}
+body.compact .sl-meta b{font-size:14px}
+body.compact .sl-meta span:nth-child(3){flex-basis:100%}
+body.compact .sl-acts{display:none!important}
+body.compact .sl-more{display:flex;position:absolute;right:4px;bottom:4px;width:36px;height:36px;align-items:center;justify-content:center;background:var(--p2);border:1px solid var(--line);border-radius:8px;font-size:18px;font-weight:700;color:var(--fg);cursor:pointer}
+body.compact .list-pane .pane-head .btn{flex:none}
+
+/* Symbole: Suche bleibt oben stehen */
+body.compact #inspElemente{gap:10px;padding-top:0}
+body.compact .ic-search{position:sticky;top:0;z-index:2;background:var(--bg);padding:10px 0 8px;display:flex;gap:8px;flex-direction:column}
+body.compact .ic-cat{position:static}
+body.compact .ic-grid{grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:8px}
+body.compact .ic-grid button{padding:10px 4px 6px;font-size:11px}
+body.compact .ic-grid .svgw{width:34px;height:34px}
+
+/* Text: Kopf schmal, Aktionen erscheinen unten, sobald etwas markiert ist */
+body.compact .src-pane{position:relative}
+body.compact .src-pane .pane-head{flex-wrap:wrap}
+body.compact .src-text{padding:12px 14px 120px;font-size:16px;line-height:1.85}
+body.compact .src-acts{display:flex;position:absolute;left:0;right:0;bottom:0;z-index:3;flex-wrap:wrap;gap:6px;padding:10px;background:var(--p1);border-top:1px solid var(--line);box-shadow:0 -6px 20px #0006}
+body.compact .src-acts .sel-info{max-width:none;flex-basis:100%;white-space:normal;max-height:2.8em;overflow:hidden;font-size:13px}
+body.compact .src-acts .grow{display:none}
+body.compact .src-acts .btn{flex:1 1 auto}
+body.compact .src-pane:not(.has-sel) .src-acts .btn{display:none!important}
+body.compact .src-pane:not(.has-sel) .src-acts{background:transparent;border:0;box-shadow:none;pointer-events:none}
+body.compact .src-pane:not(.has-sel) .src-acts .sel-info{background:var(--p2);border-radius:8px;padding:8px 10px;text-align:center}
+body.compact .btn.primary-c{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+
+/* Dialoge als Blatt von unten */
+body.compact .modal{align-items:flex-end;padding:0}
+body.compact .card,body.compact .card.wide{max-width:none;border-radius:16px 16px 0 0;max-height:90vh;padding:16px 16px calc(16px + env(safe-area-inset-bottom));border-bottom:0}
+body.compact .card::before{content:"";display:block;width:40px;height:4px;border-radius:2px;background:var(--line);margin:-6px auto 2px;flex:none}
+body.compact .card .acts .btn{flex:1}
+body.compact .pe{grid-template-columns:1fr}
+body.compact .acc-row button{min-width:0;flex:1 1 60px;padding:9px 4px 7px}
+body.compact .prof-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.sheet-list{display:flex;flex-direction:column;gap:6px}
+.sheet-list .btn{text-align:left;padding:13px 14px;font-size:15px}
+.sheet-sec{display:flex;flex-direction:column;gap:10px;padding-top:12px;border-top:1px solid var(--line)}
+.sheet-sec:first-of-type{border-top:0;padding-top:0}
+.sheet-sec h4{margin:0;font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
+.lay-sheet .lay-grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr))}
+
+/* Übersicht */
+body.compact .home-body{padding:12px}
+body.compact .deck-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+body.compact #home .bar .btn{padding:9px 12px}
 
 /* Farbschema */
 .acc-row{display:flex;flex-wrap:wrap;gap:6px}

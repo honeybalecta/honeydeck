@@ -44,8 +44,15 @@
   }
   const safeName = s => String(s || 'Präsentation').replace(/[\\/:*?"<>|]+/g, '_').trim().slice(0, 80) || 'Präsentation';
 
+  // ───────── Darstellung: kompakt (Handy, schmale Fenster) oder breit ─────────
+  const MQ = matchMedia('(max-width: 900px), (max-height: 520px) and (pointer: coarse)');
+  const isC = () => document.body.classList.contains('compact');
+  let cTab = 'folie';
+  function setMode(){ const c = MQ.matches; document.body.classList.toggle('compact', c); document.body.classList.toggle('two', c && innerWidth > innerHeight && innerWidth >= 560); document.body.dataset.ctab = cTab; }
+  setMode();
+
   // ───────── Zustand ─────────
-  let layOpen = innerWidth > 900;
+  let layOpen = !isC();
   let deck = null, curId = null, viewFmt = null, sel = null, undo = [], redo = [], saveT = 0, icCat = '', inspTab = 'folie', lineTarget = null;
   const cur = () => deck && (deck.slides.find(s => s.id === curId) || null);
   const idx = sl => deck ? deck.slides.indexOf(sl) : 0;
@@ -186,7 +193,7 @@
     if (!deck || !deck.source || !deck.source.text) return [];
     const out = []; let i = 0;
     String(deck.source.text).replace(/\r/g, '').split(/\n\s*\n/).forEach((para, p) => {
-      para.split(/\s+/).filter(Boolean).forEach(w => { if (/^#+$|^[-*•>]$/.test(w)) return; const c = w.replace(/\*\*/g, ''); if (c) out.push({i: i++, w: c, p}); }); });
+      para.split('\n').forEach(line => { let first = true; line.split(/\s+/).filter(Boolean).forEach(w => { if (/^#+$|^[-*•>]$/.test(w)) return; const c = w.replace(/\*\*/g, ''); if (c){ out.push({i: i++, w: c, p, ln: first}); first = false; } }); }); });
     return out;
   }
   const wordsText = (ws, a, b) => ws.filter(t => t.i >= a && t.i <= b && !t.cut).map(t => t.w).join(' ').replace(/\s+([.,!?;:])/g, '$1').trim();
@@ -209,11 +216,11 @@
     $('#edProf').innerHTML = allProfiles().map(p => `<option value="${esc(p.id)}">${esc(p.name)}${p.builtin ? '' : ' (eigenes)'}</option>`).join(''); $('#edProf').value = profile().id; paintAccBtn();
     if (EMBED){ $('#subSafe').checked = HOST.subSafe(); }
     if (!cur() && deck.slides.length) curId = deck.slides[0].id;
-    $('#edBody').classList.toggle('no-src', !EMBED && !(deck.source && deck.source.text) && innerWidth > 900);
+    $('#edBody').classList.toggle('no-src', !EMBED && !(deck.source && deck.source.text) && !isC());
     renderList(); renderStage(); renderInsp(); renderSrc();
   }
   function renderList(){
-    const box = $('#slList'); box.innerHTML = '';
+    const box = $('#slList'); box.innerHTML = ''; box.style.setProperty('--ar-inv', `${projFmt().W} / ${projFmt().H}`);
     $('#slCount').textContent = deck.slides.length ? deck.slides.length + '' : '';
     const ws = words(), f = projFmt();
     deck.slides.forEach((sl, k) => {
@@ -221,6 +228,7 @@
       const t = EMBED ? HOST.times(sl) : null, linked = sl.a != null;
       d.innerHTML = `<img alt=""><div class="sl-meta"><b>${k + 1} <span class="warn" data-warn></span></b><span>${esc(H.layout(sl.layout).n)}</span>
         <span class="muted">${t ? HOST.fmtTime(t.s) : linked ? '⛓ verknüpft' : EMBED ? 'nicht verknüpft' : ''}${EMBED && HOST.placed(sl) ? ' · eingesetzt' : ''}</span></div>
+        <button class="sl-more" data-a="more" aria-label="Aktionen für Folie ${k + 1}">⋯</button>
         <div class="sl-acts"><button data-a="up" title="nach vorn">↑</button><button data-a="down" title="nach hinten">↓</button><button data-a="dup" title="duplizieren">⧉</button><button data-a="del" title="löschen">✕</button></div>`;
       thumb(sl, f, 160).then(u => d.querySelector('img').src = u);
       checkSlide(sl).then(r => { const bad = r.filter(x => x.over || x.small); const w = d.querySelector('[data-warn]'); if (w){ w.textContent = bad.length ? '⚠' : ''; w.title = bad.length ? 'Text sehr klein in: ' + bad.map(x => x.n).join(', ') : ''; } });
@@ -234,24 +242,30 @@
     const sl = cur(), cv = $('#stage'), tok = ++stageTok, f = workFmt();
     const strip = $('#fmtStrip');
     if (!sl){ cv.width = 16; cv.height = 9; cv.getContext('2d').clearRect(0, 0, 16, 9); strip.innerHTML = ''; $('#fmtNote').textContent = ''; return; }
+    $('#paneStage').style.setProperty('--ar', (f.H / f.W).toFixed(4)); paintNav();
     const st = $('.stage'), maxW = Math.max(320, st.clientWidth || 960), maxH = Math.max(200, st.clientHeight || 540);
     const sc = Math.min(maxW / f.W, maxH / f.H), w = Math.round(f.W * sc * (devicePixelRatio || 1)), h = Math.round(f.H * sc * (devicePixelRatio || 1));
     const r = await H.render(sl, w, h, renderOpts(sl, f));
     if (tok !== stageTok) return;
-    cv.width = w; cv.height = h; cv.style.aspectRatio = `${f.W} / ${f.H}`;
+    cv.width = w; cv.height = h; cv.style.aspectRatio = `${f.W} / ${f.H}`; paintNav();
     cv.getContext('2d').drawImage(r, 0, 0);
     drawMini(r);
     // Alle Formate nebeneinander, mit Warnung, wenn ein Text sehr klein werden musste
     const res = await checkSlide(sl); if (tok !== stageTok) return;
     strip.innerHTML = fmtList().map(x => { const c = res.find(q => q.k === x.k) || {}; return `<button data-f="${x.k}" class="${x.k === f.k ? 'on' : ''}" title="${esc(x.n)}${c.over || c.small ? ' – Text musste stark verkleinert werden, besser kürzen' : ''}"><img alt=""><span class="${c.over || c.small ? 'bad' : ''}">${c.over || c.small ? '⚠ ' : ''}${esc(x.k === 'projekt' ? 'Projekt' : x.k)}</span></button>`; }).join('');
     fmtList().forEach((x, i) => thumb(sl, x, 120).then(u => { const im = strip.querySelectorAll('img')[i]; if (im) im.src = u; }));
-    const bad = res.filter(x => x.over || x.small);
+    const bad = res.filter(x => x.over || x.small), cf = $('#cFmt');
+    cf.className = 'c-fmt ' + (bad.length ? 'bad' : 'ok'); cf.textContent = bad.length ? `⚠ ${bad.map(x => x.k === 'projekt' ? 'Projekt' : x.k).join(', ')}` : (viewFmt ? viewFmt.n.replace(/\s.*$/, '') + ' ' + viewFmt.k : 'Alle Formate');
+    cf.title = bad.length ? 'In diesen Formaten wird Text sehr klein – antippen für Details' : 'Passt in allen Formaten – antippen, um die Formate zu sehen';
     $('#fmtNote').innerHTML = bad.length ? `<span class="warn">⚠ In ${bad.map(x => esc(x.n)).join(', ')} wird Text sehr klein – kürzen oder eine andere Folienart wählen.</span>` : 'Passt in allen Formaten. Ein Klick auf ein Format zeigt die Folie darin.';
   }
 
+  function paintNav(){ const sl = cur(), k = sl ? idx(sl) : -1, n = deck ? deck.slides.length : 0;
+    $('#cPos').innerHTML = sl ? `Folie ${k + 1} <small>von ${n}</small>` : '<small>Keine Folie</small>';
+    $('#cPrev').disabled = k <= 0; $('#cNext').disabled = k < 0 || k >= n - 1; }
   // Kleine Vorschau über dem Bearbeiten-Bereich (schmale Fenster)
   function drawMini(r){ if (!r) return; $$('.mini-prev canvas').forEach(m => { m.width = r.width; m.height = r.height; m.getContext('2d').drawImage(r, 0, 0); }); }
-  async function miniPrev(){ const sl = cur(), m = $('.mini-prev canvas'); if (!sl || !m || innerWidth > 900) return; const f = workFmt(), w = 640, h = Math.round(w * f.H / f.W);
+  async function miniPrev(){ return; const sl = cur(), m = $('.mini-prev canvas'); if (!sl || !m) return; const f = workFmt(), w = 640, h = Math.round(w * f.H / f.W);
     drawMini(await H.render(sl, w, h, renderOpts(sl, f))); }
 
   // ───────── Bearbeiten ─────────
@@ -286,8 +300,8 @@
     const th = sl.dark == null ? 'auto' : sl.dark ? 'dark' : 'light';
     const t = EMBED ? HOST.times(sl) : null, ws = sl.a != null ? wordsText(words(), sl.a, sl.b) : '';
     box.innerHTML = `<div class="mini-prev"><canvas id="miniPrev"></canvas></div>
-      <div class="lay-cur"><span class="muted small">Folie ${idx(sl) + 1} · Folienart</span><button class="btn small" id="layToggle">${esc(L.n)} ${layOpen ? '▴' : '▾ ändern'}</button></div>
-      ${layOpen ? groups.map(g => `<div class="lay-group"><span>${esc(g)}</span><div class="lay-grid">${H.LAYOUTS.filter(l => l.g === g).map(l => `<button data-l="${l.k}" class="${l.k === sl.layout ? 'on' : ''}" title="${esc(l.n)}"><img alt="">${esc(l.n)}</button>`).join('')}</div></div>`).join('') : ''}
+      <div class="lay-cur"><span class="muted small">Folie ${idx(sl) + 1} · Folienart</span><button class="btn small" id="layToggle">${esc(L.n)} ${isC() ? '▾' : layOpen ? '▴' : '▾ ändern'}</button></div>
+      ${layOpen && !isC() ? groups.map(g => `<div class="lay-group"><span>${esc(g)}</span><div class="lay-grid">${H.LAYOUTS.filter(l => l.g === g).map(l => `<button data-l="${l.k}" class="${l.k === sl.layout ? 'on' : ''}" title="${esc(l.n)}"><img alt="">${esc(l.n)}</button>`).join('')}</div></div>`).join('') : ''}
       <div class="row wrap"><span class="muted small">Hintergrund</span><div class="seg" id="thSeg"><button data-v="auto" class="${th === 'auto' ? 'on' : ''}">abwechselnd</button><button data-v="dark" class="${th === 'dark' ? 'on' : ''}">dunkel</button><button data-v="light" class="${th === 'light' ? 'on' : ''}">hell</button></div></div>
       ${L.f.map(f => f === 'img' ? imgField(sl) : L.data && !dataAsText && (f === 'text' || f === 'text2') ? (f === 'text' ? dataTable(sl, L) : '') : `<label class="field"><span>${esc(lbl(f))}</span>${f === 'text' || f === 'text2' ? `<textarea data-f="${f}" rows="${['liste', 'zwei', 'icons', 'prozess', 'zeitstrahl', 'checkliste', 'zahlen', 'balken'].includes(sl.layout) || f === 'text2' ? 5 : 3}"></textarea>` : `<input type="text" data-f="${f}">`}</label>`).join('')}
       ${L.data && dataAsText ? '<button class="btn small ghost" id="dtTable">▦ Als Tabelle bearbeiten</button>' : ''}
@@ -416,7 +430,8 @@
     const [a, b] = sel ? [Math.min(sel.a, sel.b), Math.max(sel.a, sel.b)] : [-1, -2];
     $$('#srcText .w').forEach(sp => { const i = +sp.dataset.i; sp.classList.toggle('sel', i >= a && i <= b); });
     const t = sel ? wordsText(words(), a, b) : '';
-    $('#selInfo').textContent = sel ? `„${t.slice(0, 80)}${t.length > 80 ? ' …' : ''}“` : 'Wort antippen, Umschalt+Klick oder Ziehen markiert einen Bereich';
+    $('#selInfo').textContent = sel ? `„${t.slice(0, 80)}${t.length > 80 ? ' …' : ''}“` : isC() ? 'Erstes Wort antippen, dann das letzte – oder ein Wort und „Ganzer Satz“' : 'Wort antippen, Umschalt+Klick oder Ziehen markiert einen Bereich';
+    $('#paneSrc').classList.toggle('has-sel', !!sel);
   }
   function takeSel(to){
     if (!sel) return toast('Erst im Text Wörter markieren');
@@ -622,7 +637,7 @@
     const m = document.createElement('div'); m.className = 'modal'; m.id = 'modal';
     m.innerHTML = `<div class="card ${cls}">${html}</div>`;
     m.addEventListener('click', e => { if (e.target === m || e.target.closest('[data-x]')) closeModal(); });
-    document.body.append(m); const f = m.querySelector('input,textarea'); if (f && innerWidth > 900) f.focus();
+    document.body.append(m); const f = m.querySelector('input,textarea'); if (f && !isC()) f.focus();
     return m;
   }
   function closeModal(){ const m = $('#modal'); if (m) m.remove(); }
@@ -649,8 +664,14 @@
   $('#srcSuggest').onclick = suggestFromText;
   $('#srcEdit').onclick = editSourceText;
   $$('[data-to]').forEach(b => b.onclick = () => takeSel(b.dataset.to));
-  $('#stage').onclick = () => { if (!cur()) return; if (innerWidth <= 900){ inspTab = 'folie'; renderInsp(); mobPane('paneInsp'); } else { const f = $('#inspFolie [data-f]'); inspTab = 'folie'; renderInsp(); const g = $('#inspFolie [data-f]'); if (g) g.focus(); void f; } };
-  $('#mobEdit').onclick = () => { inspTab = 'folie'; renderInsp(); mobPane('paneInsp'); };
+  $('#stage').onclick = () => { if (!cur()) return; if (isC()){ if (cTab === 'list' || cTab === 'src') cGo('folie'); } else { const f = $('#inspFolie [data-f]'); inspTab = 'folie'; renderInsp(); const g = $('#inspFolie [data-f]'); if (g) g.focus(); void f; } };
+  $('#mobEdit').onclick = () => cGo('folie');
+  $('#cPrev').onclick = () => stepSlide(-1); $('#cNext').onclick = () => stepSlide(1);
+  function stepSlide(d){ const sl = cur(); if (!sl) return; const n = deck.slides[idx(sl) + d]; if (!n) return; curId = n.id; lineTarget = null; viewFmt = null; renderAll(); }
+  $('#cFmt').onclick = () => { $('#paneStage').classList.toggle('fmt-open'); renderStage(); };
+  $('#edMore').onclick = moreSheet;
+  $('#cMore').onclick = moreSheet; $('#lMore').onclick = moreSheet;
+  $('#placeBtn2').onclick = () => HOST.place($('#gapless').checked);
   // Elemente-Reiter: Symbol oder Bild von der Folie entfernen
   $('#inspElemente').addEventListener('click', e => { const sl = cur(); if (!sl) return;
     const del = e.target.closest('[data-icdel]'); if (del){ commit(() => { sl.icons = (sl.icons || []).slice(); sl.icons[+del.dataset.icdel] = null; while (sl.icons.length && !sl.icons[sl.icons.length - 1]) sl.icons.pop(); }); return; }
@@ -659,23 +680,85 @@
   $('#icSearch').oninput = renderLib;
   $('#icCats').onchange = e => { icCat = e.target.value; renderLib(); $('#icGrid').scrollIntoView({block: 'nearest'}); };
   $('#icGrid').onclick = e => { const c = e.target.closest('[data-c]'); if (c){ icCat = c.dataset.c; renderLib(); return; } const b = e.target.closest('[data-ic]'); if (b) placeIcon(b.dataset.ic); };
-  $('#mobTabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; mobPane(b.dataset.p); };
-  function mobPane(p){ if (p === 'paneList' && innerWidth > 600 && innerWidth <= 900) p = 'paneStage'; $$('#mobTabs button').forEach(x => x.classList.toggle('on', x.dataset.p === p)); $$('.ed-body>.pane').forEach(x => x.classList.toggle('mob-on', x.id === p)); if (p === 'paneStage') renderStage(); }
-  mobPane('paneStage');
+  $('#mobTabs').onclick = e => { const b = e.target.closest('button'); if (b) cGo(b.dataset.t); };
+  // Kompakt: vier Reiter – Folien, Folie (Inhalt), Symbole, Text. Die Folie selbst bleibt oben bzw. links sichtbar.
+  function cGo(t){
+    if (t !== cTab) $('#paneStage').classList.remove('fmt-open');
+    cTab = t; document.body.dataset.ctab = t;
+    $$('#mobTabs button').forEach(x => x.classList.toggle('on', x.dataset.t === t));
+    const pane = {list: 'paneList', folie: 'paneInsp', sym: 'paneInsp', src: 'paneSrc'}[t];
+    $$('.ed-body>.pane:not(#paneStage)').forEach(x => x.classList.toggle('mob-on', x.id === pane));
+    if (t === 'folie' || t === 'sym'){ inspTab = t === 'sym' ? 'elemente' : 'folie'; renderInsp(); const b = $(t === 'sym' ? '#inspElemente' : '#inspFolie'); if (b) b.scrollTop = 0; }
+    requestAnimationFrame(() => renderStage());
+  }
+  const mobPane = p => cGo({paneList: 'list', paneStage: 'folie', paneInsp: inspTab === 'elemente' ? 'sym' : 'folie', paneSrc: 'src'}[p] || 'folie');
+  cGo('folie');
+  MQ.addEventListener('change', () => { setMode(); if (deck) renderAll(); });
 
   // Folienliste: auswählen, Aktionen, ziehen zum Umsortieren
   $('#slList').addEventListener('click', e => {
     const it = e.target.closest('.sl-item'); if (!it) return;
     const sl = deck.slides.find(s => s.id === it.dataset.id), act = e.target.closest('[data-a]');
-    if (!act){ curId = sl.id; lineTarget = null; renderAll(); if (innerWidth <= 900) mobPane('paneInsp'); return; }
-    const k = idx(sl), a = act.dataset.a;
+    if (!act){ curId = sl.id; lineTarget = null; viewFmt = null; renderAll(); if (isC()) cGo('folie'); return; }
+    if (act.dataset.a === 'more') return slideSheet(sl);
+    slideAct(sl, act.dataset.a);
+  });
+  function slideAct(sl, a){
+    const k = idx(sl);
+    if (a === 'del' && isC() && !confirm(`Folie ${k + 1} löschen?`)) return;
     commit(() => {
       if (a === 'up' && k > 0) deck.slides.splice(k - 1, 0, deck.slides.splice(k, 1)[0]);
       if (a === 'down' && k < deck.slides.length - 1) deck.slides.splice(k + 1, 0, deck.slides.splice(k, 1)[0]);
       if (a === 'dup'){ const c = {...clone(sl), id: H.uid(), a: null, b: null}; delete c.media; delete c.mediaKey; deck.slides.splice(k + 1, 0, c); curId = c.id; }
       if (a === 'del'){ deck.slides.splice(k, 1); if (curId === sl.id) curId = (deck.slides[Math.min(k, deck.slides.length - 1)] || {}).id || null; }
     });
-  });
+  }
+  function slideSheet(sl){
+    const k = idx(sl), n = deck.slides.length;
+    const m = modal(`<h3>Folie ${k + 1} · ${esc(H.layout(sl.layout).n)}</h3><div class="sheet-list">
+      <button class="btn" data-sa2="edit">✎ Bearbeiten</button>
+      ${k > 0 ? '<button class="btn" data-sa2="up">↑ Eine Stelle nach vorn</button>' : ''}${k < n - 1 ? '<button class="btn" data-sa2="down">↓ Eine Stelle nach hinten</button>' : ''}
+      <button class="btn" data-sa2="dup">⧉ Duplizieren</button><button class="btn danger" data-sa2="del">✕ Löschen</button></div>
+      <div class="acts"><button class="btn ghost" data-x>Abbrechen</button></div>`);
+    m.querySelectorAll('[data-sa2]').forEach(b => b.onclick = () => { const a = b.dataset.sa2; closeModal();
+      if (a === 'edit'){ curId = sl.id; renderAll(); cGo('folie'); return; } slideAct(sl, a); if (a === 'up' || a === 'down') toast(`Jetzt Folie ${idx(sl) + 1}`); });
+  }
+  // Kompakt: alles, was die ganze Präsentation betrifft, in einem Blatt
+  function moreSheet(){
+    const m = modal(`<h3>${esc(EMBED ? 'Folien' : deck.name || 'Präsentation')}</h3>
+      <div class="sheet-sec"><h4>Aussehen</h4>
+        ${EMBED ? '' : `<label class="field"><span>Format</span><select id="smFmt">${H.FORMATS.map(f => `<option value="${f.k}"${f.k === deck.format ? ' selected' : ''}>${esc(f.n)}</option>`).join('')}</select></label>`}
+        <label class="field"><span>Design</span><select id="smProf">${allProfiles().map(p => `<option value="${esc(p.id)}"${p.id === profile().id ? ' selected' : ''}>${esc(p.name)}${p.builtin ? '' : ' (eigenes)'}</option>`).join('')}</select></label>
+        <div class="row"><button class="btn small" id="smProfEdit">✎ Design anpassen</button><button class="btn small" id="smProfNew">＋ Eigenes Design</button></div>
+        <div class="field"><span>Farbe</span><div id="smAcc">${accRow(profile(), profile().accent)}</div></div></div>
+      ${EMBED ? `<div class="sheet-sec"><h4>Ins Video</h4>
+        <label class="chk"><input type="checkbox" id="smGap"${$('#gapless').checked ? ' checked' : ''}> lückenlos – jede Folie bleibt, bis die nächste beginnt</label>
+        <label class="chk"><input type="checkbox" id="smSub"${$('#subSafe').checked ? ' checked' : ''}> unten Platz für Untertitel lassen</label>
+        <button class="btn primary" id="smPlace">Als B-Roll einsetzen</button></div>` : ''}
+      <div class="sheet-sec"><h4>Datei</h4><div class="sheet-list">
+        <button class="btn" id="smImport">⤓ Importieren – Text, Transkript oder Folien</button>
+        <button class="btn" id="smExport">⤒ Exportieren – Bilder, PDF oder .honeydeck</button></div></div>
+      <div class="acts"><button class="btn" data-x>Fertig</button></div>`);
+    const q = s => m.querySelector(s);
+    if (q('#smFmt')) q('#smFmt').onchange = e => { viewFmt = null; layThumbs.clear(); commit(() => { deck.format = e.target.value; }); };
+    q('#smProf').onchange = e => { const pr = allProfiles().find(x => x.id === e.target.value); if (pr){ useProfile(pr); q('#smAcc').innerHTML = accRow(profile(), profile().accent); toast(`Design „${pr.name}“`); } };
+    wireAcc(q('#smAcc'), k => setAccent(k));
+    q('#smProfEdit').onclick = () => editProfile(profile(), false); q('#smProfNew').onclick = () => editProfile(profile(), true);
+    q('#smImport').onclick = () => { closeModal(); importMenu(); };
+    q('#smExport').onclick = () => { closeModal(); deck.slides.length ? exportDialog() : toast('Noch keine Folien'); };
+    if (EMBED){ q('#smGap').onchange = e => { $('#gapless').checked = e.target.checked; };
+      q('#smSub').onchange = e => { $('#subSafe').checked = e.target.checked; HOST.setSubSafe(e.target.checked); thumbs.clear(); renderAll(); };
+      q('#smPlace').onclick = () => { closeModal(); HOST.place($('#gapless').checked); }; }
+  }
+  // Kompakt: Folienart als Blatt mit allen Arten
+  function layoutSheet(){
+    const sl = cur(); if (!sl) return;
+    const groups = [...new Set(H.LAYOUTS.map(l => l.g))];
+    const m = modal(`<h3>Folienart</h3><div class="lay-sheet">${groups.map(g => `<div class="lay-group"><span>${esc(g)}</span><div class="lay-grid">${H.LAYOUTS.filter(l => l.g === g).map(l => `<button data-l2="${l.k}" class="${l.k === sl.layout ? 'on' : ''}"><img alt="">${esc(l.n)}</button>`).join('')}</div></div>`).join('')}</div>
+      <div class="acts"><button class="btn ghost" data-x>Schließen</button></div>`, 'wide');
+    m.querySelectorAll('[data-l2]').forEach(b => { layoutPreview(b.dataset.l2).then(u => { const im = b.querySelector('img'); if (im) im.src = u; });
+      b.onclick = () => { closeModal(); commit(() => { sl.layout = b.dataset.l2; }); }; });
+  }
   let dragId = null;
   $('#slList').addEventListener('dragstart', e => { const it = e.target.closest('.sl-item'); if (!it) return; dragId = it.dataset.id; it.classList.add('drag'); e.dataTransfer.effectAllowed = 'move'; });
   $('#slList').addEventListener('dragover', e => { if (!dragId) return; e.preventDefault(); $$('.sl-item.over').forEach(x => x.classList.remove('over')); const it = e.target.closest('.sl-item'); if (it) it.classList.add('over'); });
@@ -705,7 +788,7 @@
   });
   $('#inspFolie').addEventListener('click', e => {
     const sl = cur(); if (!sl) return;
-    const l = e.target.closest('[data-l]'); if (l){ if (innerWidth <= 900) layOpen = false; commit(() => { sl.layout = l.dataset.l; }); return; }
+    const l = e.target.closest('[data-l]'); if (l){ if (isC()) layOpen = false; commit(() => { sl.layout = l.dataset.l; }); return; }
     const th = e.target.closest('#thSeg button'); if (th){ commit(() => { sl.dark = th.dataset.v === 'auto' ? null : th.dataset.v === 'dark'; }); layThumbs.clear(); return; }
     const dt = e.target.closest('[data-dt],[data-hi],[data-rdel]');
     if (dt){ const M = modelFromDom() || tableModel(sl, H.layout(sl.layout)), d = dt.dataset;
@@ -723,13 +806,13 @@
     if (e.target.id === 'dtTable'){ dataAsText = false; renderInsp(); return; }
     const set = e.target.closest('[data-icset]'); if (set){ commit(() => { sl.icons = [set.dataset.icset]; }); return; }
     const del = e.target.closest('[data-icdel]'); if (del){ e.stopPropagation(); commit(() => { sl.icons = (sl.icons || []).slice(); sl.icons[+del.dataset.icdel] = null; while (sl.icons.length && !sl.icons[sl.icons.length - 1]) sl.icons.pop(); }); return; }
-    const line = e.target.closest('[data-line]'); if (line){ lineTarget = +line.dataset.line; inspTab = 'elemente'; renderInsp(); if (innerWidth <= 900) mobPane('paneInsp'); return; }
-    if (e.target.closest('[data-goto-lib]')){ inspTab = 'elemente'; renderInsp(); return; }
+    const line = e.target.closest('[data-line]'); if (line){ lineTarget = +line.dataset.line; inspTab = 'elemente'; if (isC()) cGo('sym'); else renderInsp(); return; }
+    if (e.target.closest('[data-goto-lib]')){ inspTab = 'elemente'; if (isC()) cGo('sym'); else renderInsp(); return; }
     if (e.target.id === 'icAuto'){ const ls = String(sl.text || '').split('\n').map(x => x.trim()).filter(Boolean);
       commit(() => { sl.icons = ls.map((t, i) => (sl.icons || [])[i] || IC.suggest(t)[0] || null); }); if (!ls.length) toast('Erst Zeilen eintragen'); return; }
     if (e.target.id === 'imgPick'){ if (EMBED) HOST.pickImage().then(uri => { if (uri) commit(() => { sl.img = uri; }); }); else $('#imgIn').click(); return; }
     if (e.target.id === 'imgDel' || e.target.closest('[data-imgdel]')){ commit(() => { sl.img = null; }); return; }
-    if (e.target.id === 'layToggle'){ layOpen = !layOpen; renderInsp(); return; }
+    if (e.target.id === 'layToggle'){ if (isC()) return layoutSheet(); layOpen = !layOpen; renderInsp(); return; }
     const sa = e.target.closest('[data-sa]');
     if (sa){ const k = idx(sl);
       if (sa.dataset.sa === 'del' && !confirm(`Folie ${k + 1} löschen?`)) return;
@@ -759,6 +842,15 @@
     box.addEventListener('dblclick', e => { const sp = e.target.closest('.w'); if (sp && EMBED) HOST.seekWord(+sp.dataset.i); });
   })();
 
+  // Markierung auf ganze Sätze erweitern (Handy)
+  $('#selSentence').onclick = () => { if (!sel) return; const ws = words(), pos = new Map(ws.map((w, j) => [w.i, j]));
+    let a = pos.get(Math.min(sel.a, sel.b)), b = pos.get(Math.max(sel.a, sel.b)); if (a == null || b == null) return;
+    const end = w => /[.!?…:]["“”»«)]*$/.test(w.w) && !/^(\d+|[A-ZÄÖÜ]|z\.\s?B|u\.\s?a|d\.\s?h|bzw|ca|Nr|Dr|Prof|St)\.$/.test(w.w);
+    const brk = j => ws[j].ln || ws[j].p !== ws[j - 1].p;
+    while (a > 0 && !end(ws[a - 1]) && !brk(a)) a--; while (b < ws.length - 1 && !end(ws[b]) && !brk(b + 1)) b++;
+    sel = {a: ws[a].i, b: ws[b].i}; paintSel(); };
+  $('#selClear').onclick = () => { sel = null; paintSel(); };
+
   // Dateien ins Fenster ziehen
   let dropHint = null;
   window.addEventListener('dragover', e => { if (dragId || !e.dataTransfer || ![...e.dataTransfer.types].includes('Files')) return; e.preventDefault(); if (!dropHint){ dropHint = document.createElement('div'); dropHint.className = 'drop-hint'; dropHint.textContent = 'Loslassen zum Importieren'; document.body.append(dropHint); } });
@@ -779,7 +871,7 @@
     if ((e.key === 'Delete' || e.key === 'Backspace') && cur() && !sel){ e.preventDefault(); const sl = cur(); commit(() => { deck.slides.splice(k, 1); curId = (deck.slides[Math.min(k, deck.slides.length - 1)] || {}).id || null; }); void sl; }
     if (e.key === 'Enter' && sel){ e.preventDefault(); takeSel('new'); }
   });
-  let rsT = 0; window.addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(() => { if (deck){ $('#edBody').classList.toggle('no-src', !EMBED && !(deck.source && deck.source.text) && innerWidth > 900); renderStage(); } }, 120); });
+  let rsT = 0; window.addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(() => { setMode(); if (deck){ $('#edBody').classList.toggle('no-src', !EMBED && !(deck.source && deck.source.text) && !isC()); renderStage(); } }, 120); });
 
   // ───────── Start ─────────
   // Eingebettet: HoneyCut ruft HD.reload() nach Rückgängig, Profilwechsel oder Änderungen im Studio

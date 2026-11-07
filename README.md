@@ -27,6 +27,17 @@ Ohne HoneyDeck bleibt der eingebaute Folien-Reiter von HoneyCut unverändert.
 - **Import:** .honeydeck, PowerPoint (.pptx), HTML-Folien, Bilder, ZIP mit Bildern, Word (.docx), Text, Markdown, Untertitel. PDF und alte .ppt/.doc nicht.
 - **Export:** PNG (einzeln oder als ZIP, ein Ordner je Format), PDF, .honeydeck.
 
+## Auf dem Handy
+
+Eine eigene, aufgeräumte Ansicht für Touch und schmale Fenster:
+
+- **Oben eine Zeile:** zurück, Name, Rückgängig/Wiederholen und „⋯“ – dort liegen Format, Design, Farbe, Import und Export.
+- **Die Folie bleibt sichtbar** (hochkant oben, quer links), mit ‹ › zum Blättern und einem Formate-Knopf, der warnt, wenn ein Format zu eng wird.
+- **Vier Reiter unten:** Folien (Raster mit großen Vorschauen, „⋯“ je Folie zum Verschieben, Duplizieren, Löschen), Folie (Inhalt, Folienart als Auswahlblatt), Symbole, Text.
+- **Text markieren:** erstes und letztes Wort antippen oder ein Wort und „Ganzer Satz“; die Aktionen erscheinen unten, sobald etwas markiert ist.
+- **Auswahlen als Blatt von unten**, Eingaben und Knöpfe in Fingergröße.
+- In HoneyCut liegen die Reiter oben, weil unten schon die HoneyCut-Reiter sind.
+
 ## In HoneyCut
 
 - Der Reiter „Folien“ zeigt HoneyDeck mit dem Transkript des Projekts. Rückgängig, Speichern und „Als B-Roll einsetzen“ laufen über HoneyCut, ebenso N im Studio.
