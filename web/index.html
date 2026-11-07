@@ -35,6 +35,7 @@
     <div class="bar-group">
       <label class="sel-lbl" id="fmtWrap" title="Arbeitsformat – exportieren lässt sich in jedes Format"><span>Format</span><select id="edFmt"></select></label>
       <label class="sel-lbl" title="Designprofil: Farben, Schriften, Anordnung"><span>Design</span><select id="edProf"></select></label>
+      <button class="icon-btn acc-btn" id="edAcc" title="Farbe der Präsentation" aria-label="Farbe der Präsentation"><i></i></button>
       <button class="icon-btn" id="profEdit" title="Designprofil bearbeiten">✎</button>
       <button class="icon-btn" id="profNew" title="Neues Designprofil">＋</button>
     </div>
@@ -68,9 +69,9 @@
       <div id="inspElemente" class="insp-body hidden">
         <div id="icOnSlide"></div>
         <input type="search" id="icSearch" placeholder="Symbol suchen – z. B. Streik, Miete, Polizei">
-        <div class="chips" id="icCats"></div>
+        <select id="icCats" class="ic-cats" aria-label="Kategorie"></select>
         <p class="muted small" id="icHint"></p>
-        <div class="ic-grid" id="icGrid"></div>
+        <div id="icGrid"></div>
       </div>
     </aside>
 

@@ -26,8 +26,16 @@
     {k:'zeitstrahl', n:'Zeitstrahl', g:'Symbole', f:['kicker', 'title', 'text', 'source'], lbl:{text:'Ereignisse – je Zeile „Datum: Text“'}},
     {k:'checkliste', n:'Richtig/Falsch', g:'Vergleich', f:['kicker', 'title', 'text', 'source'], lbl:{text:'Zeilen mit + (Haken) oder − (Kreuz) beginnen'}},
     {k:'zahlen',   n:'Kennzahlen',   g:'Zahlen', f:['kicker', 'title', 'text', 'source'], lbl:{text:'Je Zeile „Zahl: Bedeutung“ (2 bis 4)'}},
-    {k:'balken',   n:'Balken',       g:'Zahlen', f:['kicker', 'title', 'text', 'source'], lbl:{text:'Je Zeile „Bezeichnung: Wert“ – * vorn hebt hervor'}},
-    {k:'anteil',   n:'Anteil',       g:'Zahlen', f:['kicker', 'title', 'text', 'source'], lbl:{title:'Anteil (z. B. 37 %)', text:'Was der Anteil bedeutet'}},
+    {k:'saeulen',  n:'Säulen',       g:'Diagramme', f:['kicker', 'title', 'text', 'text2', 'source'], data:'multi', lbl:{text:'Werte – je Zeile „Bezeichnung: Wert“ (mehrere Reihen: „A: 3; 5“)', text2:'Namen der Reihen (mit Komma getrennt, optional)'}},
+    {k:'balken',   n:'Balken',       g:'Diagramme', f:['kicker', 'title', 'text', 'source'], data:'single', lbl:{text:'Je Zeile „Bezeichnung: Wert“ – * vorn hebt hervor'}},
+    {k:'linie',    n:'Linie',        g:'Diagramme', f:['kicker', 'title', 'text', 'text2', 'source'], data:'multi', lbl:{text:'Werte – je Zeile „Zeitpunkt: Wert“ (mehrere Linien: „2024: 3; 5“)', text2:'Namen der Linien (mit Komma getrennt, optional)'}},
+    {k:'flaeche',  n:'Fläche',       g:'Diagramme', f:['kicker', 'title', 'text', 'text2', 'source'], data:'multi', lbl:{text:'Werte – je Zeile „Zeitpunkt: Wert“', text2:'Namen der Reihen (mit Komma getrennt, optional)'}},
+    {k:'kreis',    n:'Kreis',        g:'Diagramme', f:['kicker', 'title', 'text', 'source'], data:'single', lbl:{text:'Teile – je Zeile „Bezeichnung: Wert“ – * vorn hebt hervor'}},
+    {k:'ring',     n:'Ring',         g:'Diagramme', f:['kicker', 'title', 'text', 'source'], data:'single', lbl:{text:'Teile – je Zeile „Bezeichnung: Wert“ – * vorn hebt hervor'}},
+    {k:'gestapelt',n:'Gestapelt',    g:'Diagramme', f:['kicker', 'title', 'text', 'text2', 'source'], data:'multi', lbl:{text:'Je Zeile „Bezeichnung: Teil 1; Teil 2; …“', text2:'Namen der Teile (mit Komma getrennt)'}},
+    {k:'anteil',   n:'Anteil',       g:'Diagramme', f:['kicker', 'title', 'text', 'source'], lbl:{title:'Anteil (z. B. 37 %)', text:'Was der Anteil bedeutet'}},
+    {k:'waffel',   n:'Raster',       g:'Diagramme', f:['kicker', 'title', 'text', 'source'], lbl:{title:'Anteil (z. B. 37 % oder 3 von 10)', text:'Was der Anteil bedeutet'}},
+    {k:'tacho',    n:'Skala',        g:'Diagramme', f:['kicker', 'title', 'text', 'source'], lbl:{title:'Wert (z. B. 62 % oder 7 von 10)', text:'Was der Wert bedeutet'}},
     {k:'menschen', n:'Menschen',     g:'Zahlen', f:['kicker', 'title', 'text', 'source'], lbl:{title:'Verhältnis (z. B. 3 von 10)', text:'Was das Verhältnis bedeutet'}},
   ];
   const LBL = {kicker:'Rubrik (klein, oben)', title:'Titel', text:'Text', text2:'Zweite Spalte', source:'Quelle', img:'Bild'};
@@ -62,7 +70,20 @@
 
   function mix(a, b, f){ const h = x => [1, 3, 5].map(i => parseInt(x.slice(i, i + 2), 16)); const A = h(a), B = h(b);
     return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * f).toString(16).padStart(2, '0')).join(''); }
-  function colors(pr, dark){ const c = pr.colors[dark ? 'dark' : 'light']; return {...c, line: mix(c.bg, c.fg, 0.18), soft: mix(c.bg, c.fg, 0.06)}; }
+  // Farbschemata: eine Akzentfarbe für die ganze Präsentation (je eine Fassung für dunkle und helle Folien)
+  const ACCENTS = [
+    {k:'rot',     n:'Rot',     dark:'#E5402A', light:'#B8301D'},
+    {k:'gruen',   n:'Grün',    dark:'#5DB37A', light:'#3E8A55'},
+    {k:'petrol',  n:'Petrol',  dark:'#3FAAA2', light:'#1E736E'},
+    {k:'blau',    n:'Blau',    dark:'#6F9BEA', light:'#2E5CA6'},
+    {k:'violett', n:'Violett', dark:'#AE8DE6', light:'#6A48A6'},
+    {k:'magenta', n:'Magenta', dark:'#E86BA7', light:'#A3346C'},
+    {k:'orange',  n:'Orange',  dark:'#F08A3E', light:'#B0531A'},
+    {k:'ocker',   n:'Ocker',   dark:'#DDAA3E', light:'#8E640F'},
+  ];
+  const accent = k => ACCENTS.find(a => a.k === k) || null;
+  function colors(pr, dark){ const c = {...pr.colors[dark ? 'dark' : 'light']}; const a = accent(pr.accent); if (a) c.acc = a[dark ? 'dark' : 'light'];
+    return {...c, line: mix(c.bg, c.fg, 0.18), soft: mix(c.bg, c.fg, 0.06), dim: mix(c.bg, c.fg, 0.38)}; }
   function fontFn(spec, w, it, scale){
     const fam = spec === 'Lora' ? 'Lora, Georgia, serif' : spec && spec.startsWith('k:') ? `"TSF-${spec.slice(2)}", Inter, sans-serif` : 'Inter, "Segoe UI", sans-serif';
     const wt = spec && spec.startsWith('k:') ? 400 : w;
@@ -193,7 +214,7 @@
     const pf = pr.pad === 'eng' ? 0.75 : pr.pad === 'weit' ? 1.4 : 1;
     let px = Math.max(6 * u, W * (port ? 0.08 : 0.065)) * pf, py = 7 * u * pf, cw = W - 2 * px;
     const L = sl.layout;
-    const CEN = pr.align === 'center' && ['titel', 'zahl', 'begriff', 'zitat', 'vollbild', 'aussage', 'frage', 'anteil', 'menschen'].includes(L);
+    const CEN = pr.align === 'center' && ['titel', 'zahl', 'begriff', 'zitat', 'vollbild', 'aussage', 'frage', 'anteil', 'menschen', 'waffel', 'tacho'].includes(L);
     const icons = (sl.icons || []).filter(Boolean);
     try { ctx.letterSpacing = '0px'; } catch(_){}
     ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
@@ -436,7 +457,13 @@
         const len = isFinite(p.v) ? Math.max(0.6 * u, (bwid - vw - 3 * u) * Math.abs(p.v) / max) : 0;
         ctx.fillStyle = p.hi ? C.acc : C.line; ctx.fillRect(bx0, by, len, bh);
         ctx.fillStyle = p.hi ? C.acc : C.fg; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(p.b, bx0 + len + 2 * u, by + bh / 2); ctx.textBaseline = 'alphabetic'; });
-    } else if (L === 'anteil' || L === 'menschen'){
+    } else if (CHART.has(L)){
+      // ───── Diagramme: Säulen, Linie, Fläche, Kreis, Ring, gestapelt ─────
+      let y = kicker(px, py, sl.kicker);
+      const tf = fit(ctx, sl.title || '', INTER(800), cw, (bottom - y) * 0.22, 6.5 * u, 3 * u, 1.08);
+      if (sl.title){ ctx.font = INTER(800)(tf.size); y = drawText(ctx, tf, px, y, 1.08, C.fg, 'left', C.acc) + 4 * u; }
+      chart(ctx, L, parseData(sl), {x: px, y, w: cw, h: bottom - y}, C, u, INTER, fit, rep, W / H);
+    } else if (L === 'anteil' || L === 'menschen' || L === 'waffel' || L === 'tacho'){
       let y = kicker(bx, top, sl.kicker);
       const area = bottom - y - 2 * u, side = W / H > 1.2;
       const gw = side ? Math.min(area, cw * 0.42) : Math.min(cw, area * 0.5), gh = side ? area : gw;
@@ -454,6 +481,22 @@
         if (frac > 0){ ctx.strokeStyle = C.acc; ctx.beginPath(); ctx.arc(cx, cy, r - th / 2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac); ctx.stroke(); }
         const lab = fit(ctx, plain(sl.title) || '0 %', INTER(900), (r - th) * 1.6, (r - th) * 0.9, 12 * u, 2 * u, 1);
         ctx.font = INTER(900)(lab.size); drawText(ctx, lab, cx, cy - lab.lines.length * lab.size / 2 - lab.size * 0.08, 1, C.fg, 'center');
+      } else if (L === 'waffel'){   // 10 × 10 Raster, ein Feld = 1 %
+        const frac = isFinite(part) && whole > 0 ? Math.max(0, Math.min(1, part / whole)) : 0, hit = Math.round(frac * 100);
+        const s0 = Math.min(gw, gh), cs = s0 / 10, gap = cs * 0.14, ox = gx + (gw - s0) / 2, oy = gy + (gh - s0) / 2;
+        for (let i = 0; i < 100; i++){ const c = i % 10, r = Math.floor(i / 10);
+          ctx.fillStyle = i < hit ? C.acc : C.line; roundRect(ctx, ox + c * cs + gap / 2, oy + r * cs + gap / 2, cs - gap, cs - gap, cs * 0.18); ctx.fill(); }
+      } else if (L === 'tacho'){    // Halbkreis-Skala
+        const frac = isFinite(part) && whole > 0 ? Math.max(0, Math.min(1, part / whole)) : 0;
+        const r = Math.min(gw / 2, gh * 0.82), cx = gx + gw / 2, cy = gy + gh / 2 + r * 0.42, th = r * 0.26;
+        ctx.lineWidth = th; ctx.lineCap = 'butt'; ctx.strokeStyle = C.line; ctx.beginPath(); ctx.arc(cx, cy, r - th / 2, Math.PI, 2 * Math.PI); ctx.stroke();
+        if (frac > 0){ ctx.strokeStyle = C.acc; ctx.beginPath(); ctx.arc(cx, cy, r - th / 2, Math.PI, Math.PI + Math.PI * frac); ctx.stroke(); }
+        // Zeiger
+        const an = Math.PI + Math.PI * frac; ctx.strokeStyle = C.fg; ctx.lineWidth = Math.max(2, u * 0.7); ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(an) * (r - th * 1.3), cy + Math.sin(an) * (r - th * 1.3)); ctx.stroke(); ctx.lineCap = 'butt';
+        ctx.fillStyle = C.fg; ctx.beginPath(); ctx.arc(cx, cy, Math.max(3, u * 1.2), 0, 7); ctx.fill();
+        const lab = fit(ctx, plain(sl.title) || '0 %', INTER(900), (r - th) * 1.5, r * 0.36, 10 * u, 2 * u, 1);
+        ctx.font = INTER(900)(lab.size); drawText(ctx, lab, cx, cy + Math.max(3, u * 1.2) + u, 1, C.fg, 'center');
       } else {
         let tot = Math.round(isFinite(whole) ? whole : 10), hit = Math.round(isFinite(part) ? part : 0);
         if (tot > 100){ hit = Math.round(hit / tot * 100); tot = 100; } tot = Math.max(1, tot); hit = Math.max(0, Math.min(tot, hit));
@@ -463,7 +506,7 @@
       }
       // Text daneben/darunter
       const ty0 = side ? y : gy + gh + 4 * u, ta = side ? area : bottom - ty0;
-      const hf = L === 'menschen' ? fit(ctx, sl.title || '', INTER(900), tw, ta * 0.4, 10 * u, 3 * u, 1.05) : {lines: [], size: 0};
+      const hf = L === 'menschen' || L === 'waffel' ? fit(ctx, sl.title || '', INTER(900), tw, ta * 0.4, 10 * u, 3 * u, 1.05) : {lines: [], size: 0};
       const xf = fit(ctx, sl.text || '', INTER(500), tw, ta - hf.lines.length * hf.size * 1.05 - 3 * u, 4.6 * u, 2 * u, 1.3);
       const bh = hf.lines.length * hf.size * 1.05 + (sl.text ? 3 * u + xf.lines.length * xf.size * 1.3 : 0);
       let yy = ty0 + Math.max(0, (ta - bh) / 2), al = !side && CEN ? 'center' : 'left', ax = al === 'center' ? W / 2 : tx;
@@ -471,6 +514,137 @@
       if (sl.text){ ctx.font = INTER(500)(xf.size); drawText(ctx, xf, ax, yy, 1.3, C.fg, al, C.acc); }
     }
     footer();
+  }
+
+  // ───────── Diagramme ─────────
+  const CHART = new Set(['saeulen', 'linie', 'flaeche', 'kreis', 'ring', 'gestapelt']);
+  function roundRect(ctx, x, y, w, h, r){ r = Math.max(0, Math.min(r, w / 2, h / 2)); ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  // Werte lesen: je Zeile „Bezeichnung: Wert“, mehrere Werte mit „;“ (oder „, “ mit Leerzeichen – „3,5“ bleibt eine Zahl). * vorn hebt hervor.
+  function parseData(sl){
+    const rows = String(sl.text || '').split('\n').map(x => x.trim()).filter(Boolean).map(line => {
+      const hi = /^\*/.test(line); line = line.replace(/^\*\s*/, '');
+      const m = line.match(/^(.*?)\s*[:|]\s+(.*)$/) || line.match(/^(.*?):(.*)$/) || line.match(/^(.*?)\s+(-?[\d.,]+\s*%?)$/);
+      const label = m ? m[1].trim() : line, raw = m ? m[2].split(/\s*;\s*|,\s+/).map(x => x.trim()) : [];
+      while (raw.length && raw[raw.length - 1] === '') raw.pop();
+      return {label, raw, vals: raw.map(x => x === '' ? 0 : num(x)), hi};
+    });
+    const series = String(sl.text2 || '').split(/\s*[;,]\s*/).map(x => x.trim()).filter(Boolean);
+    const first = (rows.find(r => r.raw.length) || {raw: ['']}).raw[0];
+    const unit = (String(first).replace(/^[\s\-+]*[\d.,]+\s*/, '').trim()).slice(0, 8);
+    const k = Math.max(1, ...rows.map(r => r.raw.length));
+    return {rows, series, unit, k};
+  }
+  const fmtNum = (v, unit) => !isFinite(v) ? '–' : v.toLocaleString('de-DE', {maximumFractionDigits: Number.isInteger(v) ? 0 : Math.abs(v) < 100 ? 1 : 0}) + (unit ? (unit === '%' ? ' %' : ' ' + unit) : '');
+  // Reihenfarben: Akzent zuerst, dann Abstufungen der Schriftfarbe (Unterscheidung über Helligkeit)
+  const shades = C => [C.acc, C.fg, C.mute, mix(C.bg, C.fg, 0.45), mix(C.bg, C.fg, 0.3), mix(C.bg, C.fg, 0.62), mix(C.bg, C.fg, 0.22)];
+  function niceMax(v){ if (!(v > 0)) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))), f = v / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; }
+
+  function chart(ctx, L, D, B, C, u, INTER, fit, rep, ratio){
+    const {rows, unit} = D, n = rows.length;
+    if (!n){ ctx.fillStyle = C.mute; ctx.font = INTER(500)(3 * u); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('Noch keine Werte', B.x, B.y); ctx.textBaseline = 'alphabetic'; return; }
+    const k = (L === 'kreis' || L === 'ring') ? 1 : D.k, sh = shades(C), anyHi = rows.some(r => r.hi);
+    const names = [...Array(k)].map((_, i) => D.series[i] || (k > 1 ? `Reihe ${i + 1}` : ''));
+    const colS = i => k === 1 ? C.acc : sh[i % sh.length];
+    const txt = (t, x, y, f, sz, col, al = 'left', bl = 'alphabetic') => { ctx.font = f(sz); ctx.fillStyle = col; ctx.textAlign = al; ctx.textBaseline = bl; ctx.fillText(t, x, y); ctx.textBaseline = 'alphabetic'; };
+    const shrink = (t, f, sz, maxW, min = 1.4 * u) => { ctx.font = f(sz); while (sz > min && ctx.measureText(t).width > maxW){ sz *= 0.92; ctx.font = f(sz); } if (ctx.measureText(t).width > maxW) rep.small = true; return sz; };
+    // Legende (bei mehreren Reihen oder Kreis/Ring): Kästchen + Name
+    const legend = (items, x, y, maxW, vertical, sz) => {
+      let cx = x, cy = y; const box = sz * 0.8, lh = sz * 1.6;
+      for (const it of items){ ctx.font = INTER(600)(sz); const w = box + sz * 0.5 + ctx.measureText(it.t).width;
+        if (!vertical && cx > x && cx + w > x + maxW){ cx = x; cy += lh; }
+        ctx.fillStyle = it.c; roundRect(ctx, cx, cy + (sz - box) / 2, box, box, box * 0.2); ctx.fill();
+        txt(it.t, cx + box + sz * 0.5, cy + sz * 0.82, INTER(600), sz, it.tc || C.fg);
+        if (vertical) cy += lh; else cx += w + sz * 1.4; }
+      return cy + (vertical ? 0 : lh) - y;
+    };
+    let {x, y, w, h} = B;
+    const lsz0 = Math.max(1.8 * u, Math.min(3 * u, h * 0.07));
+    if (k > 1 && L !== 'gestapelt' || L === 'gestapelt'){   // Legende oben
+      const items = names.map((t, i) => ({t, c: colS(i)}));
+      if (k > 1){ const lh = legend(items, x, y, w, false, lsz0); y += lh + 1.5 * u; h -= lh + 1.5 * u; }
+    }
+
+    if (L === 'saeulen'){
+      const all = rows.flatMap(r => r.vals.slice(0, k)).filter(isFinite), mx = Math.max(0, ...all), mn = Math.min(0, ...all);
+      const top = niceMax(mx) || 1, bot = mn < 0 ? -niceMax(-mn) : 0, span = top - bot || 1;
+      const lab = Math.max(1.7 * u, Math.min(3 * u, w / n / 5)), labH = lab * 2.6, valH = lab * 1.6;
+      const ph = h - labH - valH, py0 = y + valH, base = py0 + ph * top / span;
+      const gw = w / n, bw = Math.min(gw * 0.72 / k, 14 * u), gap = bw * 0.12;
+      ctx.fillStyle = C.line; ctx.fillRect(x, base - Math.max(1, u * 0.15), w, Math.max(2, u * 0.3));
+      rows.forEach((r, i) => {
+        const gx = x + i * gw + (gw - k * bw) / 2;
+        for (let j = 0; j < k; j++){ const v = r.vals[j]; if (!isFinite(v)) continue;
+          const bh = ph * Math.abs(v) / span, bx = gx + j * bw + gap / 2, by = v >= 0 ? base - bh : base;
+          ctx.fillStyle = k === 1 ? (anyHi ? (r.hi ? C.acc : C.dim) : C.acc) : colS(j); roundRect(ctx, bx, by, bw - gap, Math.max(1, bh), Math.min(bw * 0.12, u)); ctx.fill();
+          if (k * n <= 24){ const t = fmtNum(v, unit), s2 = shrink(t, INTER(800), lab * (k > 1 ? 0.85 : 1), bw + gap * 2);
+            txt(t, bx + (bw - gap) / 2, v >= 0 ? by - lab * 0.45 : by + bh + s2 * 1.1, INTER(800), s2, k === 1 && anyHi && !r.hi ? C.mute : C.fg, 'center'); } }
+        const s3 = shrink(r.label, INTER(600), lab, gw - u);
+        txt(r.label, x + i * gw + gw / 2, base + (bot < 0 ? ph * -bot / span : 0) + s3 * 1.4, INTER(600), s3, r.hi ? C.acc : C.fg, 'center');
+      });
+    } else if (L === 'linie' || L === 'flaeche'){
+      const all = rows.flatMap(r => r.vals.slice(0, k)).filter(isFinite), dmx = Math.max(...all), dmn = Math.min(...all);
+      // Achse: bei Werten weit über null (z. B. Index ab 100) nicht bei null beginnen; runde Teilstriche
+      let lo = dmn >= 0 && dmn > dmx * 0.5 ? dmn - (dmx - dmn) * 0.25 : Math.min(0, dmn), hi = dmx > lo ? dmx : lo + 1;
+      const step = niceMax((hi - lo) / 4); const bot = Math.floor(lo / step) * step, top = Math.ceil(hi / step) * step, span = top - bot || 1, ticks = Math.round(span / step);
+      const lab = Math.max(1.7 * u, Math.min(2.8 * u, h * 0.06));
+      ctx.font = INTER(500)(lab); const yw = Math.max(ctx.measureText(fmtNum(top, unit)).width, ctx.measureText(fmtNum(bot, unit)).width) + 1.5 * u;
+      const endW = Math.min(w * 0.22, 16 * u), pl = x + yw, pr = x + w - endW, pt = y + lab, pb = y + h - lab * 2;
+      const X = i => n === 1 ? (pl + pr) / 2 : pl + (pr - pl) * i / (n - 1), Y = v => pb - (pb - pt) * (v - bot) / span;
+      // Hilfslinien
+      for (let g = 0; g <= ticks; g++){ const v = bot + step * g, yy = Y(v); ctx.fillStyle = g === 0 || v === 0 ? C.line : C.soft; ctx.fillRect(pl, yy - Math.max(.5, u * .1), pr - pl, Math.max(1, u * .2));
+        txt(fmtNum(v, unit), pl - 1.2 * u, yy, INTER(500), lab, C.mute, 'right', 'middle'); }
+      // Beschriftungen unten (ausgedünnt)
+      const every = Math.max(1, Math.ceil(n / Math.max(2, Math.floor((pr - pl) / (lab * 6)))));
+      rows.forEach((r, i) => { if (i % every && i !== n - 1) return; const s3 = shrink(r.label, INTER(600), lab, (pr - pl) / n * every); txt(r.label, X(i), pb + lab * 1.7, INTER(600), s3, r.hi ? C.acc : C.fg, 'center'); });
+      for (let j = k - 1; j >= 0; j--){
+        const pts = rows.map((r, i) => [X(i), r.vals[j]]).filter(p => isFinite(p[1])).map(p => [p[0], Y(p[1])]);
+        if (!pts.length) continue;
+        const col = colS(j);
+        if (L === 'flaeche'){ ctx.globalAlpha = j === 0 ? 0.32 : 0.16; ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(pts[0][0], Y(Math.max(bot, Math.min(0, top)))); pts.forEach(p => ctx.lineTo(p[0], p[1])); ctx.lineTo(pts[pts.length - 1][0], Y(Math.max(bot, Math.min(0, top)))); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1; }
+        ctx.strokeStyle = col; ctx.lineWidth = Math.max(2, u * (j === 0 ? 0.8 : 0.6)); ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.stroke();
+        ctx.fillStyle = col; rows.forEach((r, i) => { const v = r.vals[j]; if (!isFinite(v)) return; const big = r.hi || i === n - 1;
+          if (n <= 24 || big){ ctx.beginPath(); ctx.arc(X(i), Y(v), (big ? 1.2 : 0.75) * u, 0, 7); ctx.fill(); }
+          if (r.hi && i !== n - 1) txt(fmtNum(v, unit), X(i), Y(v) - 1.8 * u, INTER(800), lab, col, 'center'); });
+        const last = rows[n - 1].vals[j]; if (isFinite(last)) txt(fmtNum(last, unit) + (k > 1 && names[j] ? '' : ''), pr + 1.6 * u, Y(last), INTER(800), shrink(fmtNum(last, unit), INTER(800), lab * 1.15, endW - 2 * u), col, 'left', 'middle');
+      }
+      ctx.lineCap = 'butt';
+    } else if (L === 'kreis' || L === 'ring'){
+      const parts = rows.map((r, i) => ({...r, v: Math.max(0, isFinite(r.vals[0]) ? r.vals[0] : 0), i})).filter(p => p.v > 0);
+      const tot = parts.reduce((a, p) => a + p.v, 0) || 1;
+      let ni = 0; parts.forEach(p => { p.c = anyHi ? (p.hi ? C.acc : [C.fg, C.mute, sh[3], sh[4], sh[5], sh[6]][ni++ % 6]) : sh[p.i % sh.length]; });
+      const side = ratio > 1.15, lsz = Math.max(1.8 * u, Math.min(3.2 * u, (side ? h : h * 0.4) / Math.max(4, parts.length) / 1.7));
+      const r = side ? Math.min(h / 2, w * 0.3) : Math.min(w / 2, (h - parts.length * lsz * 1.7 - 3 * u) / 2, h * 0.32);
+      const cx = side ? x + r : x + w / 2, cy = side ? y + h / 2 : y + r;
+      let a0 = -Math.PI / 2;
+      parts.forEach(p => { const a1 = a0 + Math.PI * 2 * p.v / tot; ctx.fillStyle = p.c; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, a0, a1); ctx.closePath(); ctx.fill(); p.a0 = a0; p.a1 = a1; a0 = a1; });
+      if (parts.length > 1){ ctx.strokeStyle = C.bg; ctx.lineWidth = Math.max(2, u * 0.5); parts.forEach(p => { ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(p.a0) * r, cy + Math.sin(p.a0) * r); ctx.stroke(); }); }
+      if (L === 'ring'){ ctx.fillStyle = C.bg; ctx.beginPath(); ctx.arc(cx, cy, r * 0.6, 0, 7); ctx.fill();
+        const main = parts.find(p => p.hi) || parts[0];
+        if (main){ const pc = Math.round(main.v / tot * 100) + ' %', s1 = shrink(pc, INTER(900), r * 0.42, r * 1.05); txt(pc, cx, cy + s1 * 0.18, INTER(900), s1, C.fg, 'center', 'middle');
+          const s2 = shrink(main.label, INTER(600), Math.min(lsz, r * 0.16), r * 1.0); txt(main.label, cx, cy + s1 * 0.62 + s2 * 0.4, INTER(600), s2, main.hi ? C.acc : C.mute, 'center', 'middle'); } }
+      else parts.forEach(p => { const pc = p.v / tot; if (pc < 0.07) return; const am = (p.a0 + p.a1) / 2, t = Math.round(pc * 100) + ' %', s = shrink(t, INTER(800), r * 0.13, r * 0.5);
+        txt(t, cx + Math.cos(am) * r * 0.64, cy + Math.sin(am) * r * 0.64, INTER(800), s, p.c === C.fg || p.c === sh[5] ? C.bg : (p.c === C.acc ? '#FFFFFF' : C.fg), 'center', 'middle'); });
+      // Legende mit Werten
+      const lx = side ? cx + r + 6 * u : x, ly = side ? y + (h - parts.length * lsz * 1.7) / 2 : cy + r + 3 * u, lw = side ? x + w - lx : w;
+      const items = parts.map(p => ({t: `${p.label} · ${fmtNum(p.v, unit)}`, c: p.c, tc: p.hi ? C.acc : C.fg}));
+      let ls = lsz; ctx.font = INTER(600)(ls); while (ls > 1.3 * u && items.some(it => ctx.measureText(it.t).width + ls * 1.4 > lw)){ ls *= 0.92; ctx.font = INTER(600)(ls); }
+      legend(items, lx, ly, lw, true, ls);
+    } else if (L === 'gestapelt'){
+      const lab = Math.max(1.8 * u, Math.min(3.2 * u, h / n / 3));
+      const side = ratio > 1.2, lw = side ? Math.min(w * 0.28, 40 * u) : 0, bx0 = x + (side ? lw + 2 * u : 0), bwid = x + w - bx0;
+      const rowH = h / n, bh = Math.min(rowH * (side ? 0.62 : 0.42), 10 * u);
+      rows.forEach((r, i) => {
+        const y0 = y + i * rowH, vs = r.vals.slice(0, k).map(v => isFinite(v) ? Math.max(0, v) : 0), tot = vs.reduce((a, b) => a + b, 0) || 1;
+        const by = side ? y0 + (rowH - bh) / 2 : y0 + rowH - bh - rowH * 0.12;
+        const s1 = shrink(r.label, INTER(600), lab, side ? lw : w);
+        txt(r.label, x, side ? by + bh / 2 : by - s1 * 0.5, INTER(600), s1, r.hi ? C.acc : C.fg, 'left', side ? 'middle' : 'alphabetic');
+        let cx = bx0; vs.forEach((v, j) => { const sw = bwid * v / tot; if (sw <= 0) return; ctx.fillStyle = colS(j); ctx.fillRect(cx, by, sw, bh);
+          const t = Math.round(v / tot * 100) + ' %', s2 = Math.min(bh * 0.45, lab * 0.95); ctx.font = INTER(800)(s2);
+          if (ctx.measureText(t).width + u < sw) txt(t, cx + sw / 2, by + bh / 2, INTER(800), s2, j === 0 ? '#FFFFFF' : (colS(j) === C.fg ? C.bg : C.fg), 'center', 'middle');
+          cx += sw; if (j < vs.length - 1){ ctx.fillStyle = C.bg; ctx.fillRect(cx - Math.max(1, u * .15), by, Math.max(2, u * .3), bh); } });
+      });
+    }
   }
 
   // Passt die Folie in alle Formate? Gibt je Format {k, n, over, small} zurück (gezeichnet wird klein, das reicht zum Messen)
@@ -604,6 +778,6 @@
     return best && best.score >= (q.length <= 3 ? 0.99 : 0.55) ? best : null;
   }
 
-  G.HoneyDeck = {version: '1.0.0', LAYOUTS, LBL, layout, FORMATS, format, BUILTIN, FONT_CHOICES, colors, isDark, mix, fonts, render, check,
+  G.HoneyDeck = {version: '1.0.0', ACCENTS, accent, parseData, CHART, LAYOUTS, LBL, layout, FORMATS, format, BUILTIN, FONT_CHOICES, colors, isDark, mix, fonts, render, check,
     newSlide, newDeck, normSlide, normDeck, guess, fromText, textToSlides, sentences, group, subsToText, slideText, matchCue, plain, uid, loadImg};
 })();

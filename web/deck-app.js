@@ -79,6 +79,32 @@
   async function saveProfiles(){ if (EMBED) { try { localStorage.setItem(PROF_KEY, JSON.stringify(userProfs)); } catch(_){} } else await Store.set('profiles', userProfs); }
   const allProfiles = () => { const l = H.BUILTIN.concat(userProfs); const p = deck && deck.profile; if (p && !l.some(x => x.id === p.id)) l.push(p); return l; };
 
+  // ───────── Farbschema (Akzentfarbe) ─────────
+  // null = Akzent aus dem Designprofil, sonst einer der festen Töne aus H.ACCENTS
+  const accOf = pr => H.accent(pr && pr.accent);
+  const accCss = () => { const pr = profile(), a = accOf(pr); return a ? a.dark : pr.colors.dark.acc; };
+  function accRow(pr, val){
+    const own = (pr && pr.colors) ? pr.colors : H.BUILTIN[0].colors;
+    const dot = (d, l) => `<i style="--d:${d};--l:${l}"></i>`;
+    return `<div class="acc-row" role="radiogroup" aria-label="Farbe">` +
+      `<button type="button" data-acc="" class="${!val ? 'on' : ''}" title="Wie im Designprofil">${dot(own.dark.acc, own.light.acc)}<span>Profil</span></button>` +
+      H.ACCENTS.map(a => `<button type="button" data-acc="${a.k}" class="${val === a.k ? 'on' : ''}" title="${esc(a.n)}">${dot(a.dark, a.light)}<span>${esc(a.n)}</span></button>`).join('') + '</div>';
+  }
+  function wireAcc(box, onPick){ box.addEventListener('click', e => { const b = e.target.closest('[data-acc]'); if (!b || !box.contains(b)) return;
+    box.querySelectorAll('[data-acc]').forEach(x => x.classList.toggle('on', x === b)); onPick(b.dataset.acc || null); }); }
+  function setAccent(k){ layThumbs.clear(); commit(() => { deck.profile = clone(profile()); deck.profile.accent = k; }); const a = H.accent(k); toast(a ? `Farbe: ${a.n}` : 'Farbe wie im Designprofil'); }
+  function accPopover(){
+    let pop = $('#accPop'); if (pop){ pop.remove(); return; }
+    pop = document.createElement('div'); pop.id = 'accPop'; pop.className = 'acc-pop';
+    pop.innerHTML = `<b>Farbe der Präsentation</b><p class="muted small">Gilt für alle Folien – jederzeit wieder änderbar.</p>${accRow(profile(), profile().accent)}`;
+    document.body.append(pop);
+    const r = $('#edAcc').getBoundingClientRect(); pop.style.top = Math.round(r.bottom + 6) + 'px'; pop.style.left = Math.max(8, Math.min(innerWidth - pop.offsetWidth - 8, Math.round(r.left))) + 'px';
+    wireAcc(pop, k => setAccent(k));
+    setTimeout(() => document.addEventListener('pointerdown', function off(e){ if (!pop.contains(e.target) && e.target.closest('#edAcc') == null){ pop.remove(); document.removeEventListener('pointerdown', off); } }), 0);
+  }
+  function paintAccBtn(){ const pr = profile(), a = accOf(pr), b = $('#edAcc'); if (!b) return;
+    b.querySelector('i').style.cssText = `--d:${a ? a.dark : pr.colors.dark.acc};--l:${a ? a.light : pr.colors.light.acc}`; b.title = 'Farbe der Präsentation: ' + (a ? a.n : 'wie Profil'); }
+
   // ───────── Vorschaubilder (zwischengespeichert) ─────────
   const thumbs = new Map();
   async function thumb(sl, f, w){
@@ -134,15 +160,18 @@
       <label class="field"><span>Name</span><input id="ndName" value="${esc(prefill && prefill.name ? prefill.name.replace(/\.[^.]+$/, '') : 'Neue Präsentation')}"></label>
       <div class="row wrap"><label class="field" style="flex:1"><span>Format</span><select id="ndFmt">${H.FORMATS.map(f => `<option value="${f.k}">${esc(f.n)}</option>`).join('')}</select></label>
         <label class="field" style="flex:1"><span>Design</span><select id="ndProf">${allProfiles().map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label></div>
+      <div class="field"><span>Farbe</span><div id="ndAcc">${accRow(H.BUILTIN[0], null)}</div></div>
       <label class="field"><span>Text oder Skript (optional) – Überschriften mit #, Listen mit -, Zitate mit &gt;</span><textarea id="ndText" rows="8" placeholder="Hier einen fertigen Text, ein Skript oder ein Transkript einfügen …">${esc(prefill && prefill.text || '')}</textarea></label>
       <div class="field"><span>Aus dem Text</span><div class="seg" id="ndMode"><button data-v="satz" class="on">Folien je Satz</button><button data-v="absatz">Folien je Absatz</button><button data-v="nur">nur als Text laden</button></div></div>
       <div class="acts"><button class="btn" data-x>Abbrechen</button><button class="btn primary" id="ndOk">Anlegen</button></div>`);
-    let mode = 'satz';
+    let mode = 'satz', ndAcc = null;
+    wireAcc(m.querySelector('#ndAcc'), k => { ndAcc = k; });
+    m.querySelector('#ndProf').onchange = e => { const pr = allProfiles().find(p => p.id === e.target.value); m.querySelector('#ndAcc').innerHTML = accRow(pr, ndAcc); };
     m.querySelector('#ndMode').onclick = e => { const b = e.target.closest('button'); if (!b) return; mode = b.dataset.v; m.querySelectorAll('#ndMode button').forEach(x => x.classList.toggle('on', x === b)); };
     m.querySelector('#ndOk').onclick = async () => {
       const text = m.querySelector('#ndText').value;
       const d = H.newDeck({name: m.querySelector('#ndName').value.trim() || 'Neue Präsentation', format: m.querySelector('#ndFmt').value,
-        profile: clone(allProfiles().find(p => p.id === m.querySelector('#ndProf').value) || H.BUILTIN[0])});
+        profile: {...clone(allProfiles().find(p => p.id === m.querySelector('#ndProf').value) || H.BUILTIN[0]), accent: ndAcc}});
       if (text.trim()){ d.source = {name: prefill && prefill.name || 'Eingefügter Text', text}; if (mode !== 'nur') d.slides = H.textToSlides(text, {mode}); linkToSource(d); }
       if (!d.slides.length) d.slides.push(H.newSlide({title: d.name}));
       closeModal(); await Store.set('deck:' + d.id, d); openDeck(d);
@@ -177,7 +206,7 @@
     $('#edName').value = deck.name || '';
     $('#edFmt').innerHTML = H.FORMATS.map(f => `<option value="${f.k}">${esc(f.n)}</option>`).join(''); $('#edFmt').value = deck.format;
     $('#fmtWrap').classList.toggle('hidden', EMBED);
-    $('#edProf').innerHTML = allProfiles().map(p => `<option value="${esc(p.id)}">${esc(p.name)}${p.builtin ? '' : ' (eigenes)'}</option>`).join(''); $('#edProf').value = profile().id;
+    $('#edProf').innerHTML = allProfiles().map(p => `<option value="${esc(p.id)}">${esc(p.name)}${p.builtin ? '' : ' (eigenes)'}</option>`).join(''); $('#edProf').value = profile().id; paintAccBtn();
     if (EMBED){ $('#subSafe').checked = HOST.subSafe(); }
     if (!cur() && deck.slides.length) curId = deck.slides[0].id;
     $('#edBody').classList.toggle('no-src', !EMBED && !(deck.source && deck.source.text) && innerWidth > 900);
@@ -228,7 +257,7 @@
   // ───────── Bearbeiten ─────────
   let layThumbs = new Map();
   function layoutPreview(k){
-    const sl = cur(), key = k + '|' + profile().id + '|' + (sl ? sl.dark : '') + '|' + (sl ? idx(sl) : 0);
+    const sl = cur(), key = k + '|' + profile().id + '|' + (profile().accent || '') + '|' + (sl ? sl.dark : '') + '|' + (sl ? idx(sl) : 0);
     if (layThumbs.has(key)) return layThumbs.get(key);
     const sample = SAMPLES[k] || {}, s = H.newSlide({layout: k, dark: sl ? sl.dark : null, ...sample});
     const f = projFmt(), w = 132, h = Math.round(w * f.H / f.W);
@@ -241,7 +270,10 @@
     aussage: {title: 'Ein Satz, der *hängen bleibt*.'}, frage: {title: 'Wem nützt das?'}, icons: {title: 'Piktogramme', text: 'Eins\nZwei\nDrei', icons: ['fabrik', 'gruppe', 'megafon']},
     prozess: {title: 'Ablauf', text: 'Schritt\nSchritt\nSchritt'}, zeitstrahl: {title: 'Zeitstrahl', text: '1918: Ereignis\n1919: Ereignis\n1933: Ereignis'},
     checkliste: {title: 'Richtig/Falsch', text: '+ Stimmt\n- Stimmt nicht\n+ Stimmt'}, zahlen: {title: 'Kennzahlen', text: '12: Eins\n40: Zwei\n7: Drei'},
-    balken: {title: 'Balken', text: 'A: 30\n*B: 45\nC: 20'}, anteil: {title: '37 %', text: 'Anteil'}, menschen: {title: '3 von 10', text: 'Verhältnis'}};
+    balken: {title: 'Balken', text: 'A: 30\n*B: 45\nC: 20'}, anteil: {title: '37 %', text: 'Anteil'}, menschen: {title: '3 von 10', text: 'Verhältnis'},
+    saeulen: {title: 'Säulen', text: '2021: 12; 9\n2022: 15; 11\n*2023: 21; 13', text2: 'A, B'}, linie: {title: 'Verlauf', text: '2019: 4\n2020: 6\n2021: 5\n2022: 9\n2023: 12'},
+    flaeche: {title: 'Fläche', text: '2019: 4; 2\n2020: 6; 3\n2021: 5; 4\n2022: 9; 5'}, kreis: {title: 'Kreis', text: '*A: 45\nB: 30\nC: 25'}, ring: {title: 'Ring', text: '*A: 62\nB: 38'},
+    gestapelt: {title: 'Gestapelt', text: 'A: 50; 30; 20\nB: 35; 40; 25', text2: 'Ja, Nein, Weiß nicht'}, waffel: {title: '37 %', text: 'Anteil'}, tacho: {title: '62 %', text: 'Wert'}};
 
   function renderInsp(){
     $$('#inspTabs button').forEach(b => b.classList.toggle('on', b.dataset.t === inspTab));
@@ -257,7 +289,8 @@
       <div class="lay-cur"><span class="muted small">Folie ${idx(sl) + 1} · Folienart</span><button class="btn small" id="layToggle">${esc(L.n)} ${layOpen ? '▴' : '▾ ändern'}</button></div>
       ${layOpen ? groups.map(g => `<div class="lay-group"><span>${esc(g)}</span><div class="lay-grid">${H.LAYOUTS.filter(l => l.g === g).map(l => `<button data-l="${l.k}" class="${l.k === sl.layout ? 'on' : ''}" title="${esc(l.n)}"><img alt="">${esc(l.n)}</button>`).join('')}</div></div>`).join('') : ''}
       <div class="row wrap"><span class="muted small">Hintergrund</span><div class="seg" id="thSeg"><button data-v="auto" class="${th === 'auto' ? 'on' : ''}">abwechselnd</button><button data-v="dark" class="${th === 'dark' ? 'on' : ''}">dunkel</button><button data-v="light" class="${th === 'light' ? 'on' : ''}">hell</button></div></div>
-      ${L.f.map(f => f === 'img' ? imgField(sl) : `<label class="field"><span>${esc(lbl(f))}</span>${f === 'text' || f === 'text2' ? `<textarea data-f="${f}" rows="${['liste', 'zwei', 'icons', 'prozess', 'zeitstrahl', 'checkliste', 'zahlen', 'balken'].includes(sl.layout) || f === 'text2' ? 5 : 3}"></textarea>` : `<input type="text" data-f="${f}">`}</label>`).join('')}
+      ${L.f.map(f => f === 'img' ? imgField(sl) : L.data && !dataAsText && (f === 'text' || f === 'text2') ? (f === 'text' ? dataTable(sl, L) : '') : `<label class="field"><span>${esc(lbl(f))}</span>${f === 'text' || f === 'text2' ? `<textarea data-f="${f}" rows="${['liste', 'zwei', 'icons', 'prozess', 'zeitstrahl', 'checkliste', 'zahlen', 'balken'].includes(sl.layout) || f === 'text2' ? 5 : 3}"></textarea>` : `<input type="text" data-f="${f}">`}</label>`).join('')}
+      ${L.data && dataAsText ? '<button class="btn small ghost" id="dtTable">▦ Als Tabelle bearbeiten</button>' : ''}
       ${H.layout(sl.layout).icon === 'lines' ? '' : elemsBlock(sl)}
       ${iconField(sl)}
       <p class="muted small">Tipp: *Sternchen* um ein Wort färben es in der Akzentfarbe.</p>
@@ -268,10 +301,38 @@
     miniPrev();
     box.querySelectorAll('[data-l]').forEach(b => layoutPreview(b.dataset.l).then(u => { const im = b.querySelector('img'); if (im) im.src = u; }));
   }
+  // ───────── Diagramm-Werte als Tabelle ─────────
+  let dataAsText = false;
+  function tableModel(sl, L){
+    const D = H.parseData(sl), multi = L.data === 'multi', k = multi ? Math.max(1, D.k, D.series.length) : 1;
+    return {multi, k, series: [...Array(k)].map((_, i) => D.series[i] || ''), rows: D.rows.map(r => ({label: r.label, hi: r.hi, vals: [...Array(k)].map((_, i) => r.raw[i] || '')}))};
+  }
+  function writeModel(sl, M){
+    sl.text = M.rows.map(r => `${r.hi ? '*' : ''}${r.label}: ${r.vals.slice(0, M.k).join('; ').replace(/[;\s]+$/, '')}`.trim()).join('\n');
+    if (M.multi) sl.text2 = M.series.slice(0, M.k).some(x => x.trim()) ? M.series.slice(0, M.k).map(x => x.trim() || '–').join(', ') : '';
+  }
+  function modelFromDom(){
+    const t = $('#dtab'); if (!t) return null; const multi = t.dataset.multi === '1';
+    const series = [...t.querySelectorAll('[data-s]')].map(i => i.value), k = multi ? series.length : 1;
+    const rows = [...t.querySelectorAll('tbody tr')].map(tr => ({label: tr.querySelector('[data-cl]').value.replace(/[:\n]/g, ' ').trim(), hi: tr.querySelector('[data-hi]').classList.contains('on'), vals: [...tr.querySelectorAll('[data-cv]')].map(i => i.value.replace(/;/g, ' ').trim())}));
+    return {multi, k, series, rows};
+  }
+  function dataTable(sl, L){
+    const M = tableModel(sl, L), stacked = sl.layout === 'gestapelt', what = stacked ? 'Teil' : sl.layout === 'linie' ? 'Linie' : 'Reihe';
+    const first = sl.layout === 'linie' || sl.layout === 'flaeche' ? 'Zeitpunkt' : 'Bezeichnung';
+    const head = M.multi ? M.series.map((n, i) => `<th><input data-s="${i}" value="${esc(n)}" placeholder="${what} ${i + 1}" aria-label="Name ${what} ${i + 1}"></th>`).join('') : '<th>Wert</th>';
+    const body = M.rows.map((r, j) => `<tr><td><button class="dt-hi${r.hi ? ' on' : ''}" data-hi="${j}" title="Hervorheben (Akzentfarbe)" aria-label="Hervorheben">★</button></td>
+      <td><input data-cl value="${esc(r.label)}" placeholder="${first}"></td>${r.vals.map((v, i) => `<td><input data-cv="${i}" value="${esc(v)}" inputmode="decimal" placeholder="0"></td>`).join('')}
+      <td><button class="dt-del" data-rdel="${j}" title="Zeile löschen" aria-label="Zeile löschen">✕</button></td></tr>`).join('');
+    return `<div class="field"><span>Werte</span><div class="dt-wrap"><table class="dtab" id="dtab" data-multi="${M.multi ? 1 : 0}"><thead><tr><th></th><th>${first}</th>${head}<th></th></tr></thead><tbody>${body}</tbody></table></div>
+      <div class="row wrap dt-acts"><button class="btn small" data-dt="row">＋ Zeile</button>${M.multi ? `<button class="btn small" data-dt="col">＋ ${what}</button>${M.k > 1 ? `<button class="btn small" data-dt="uncol">− ${what}</button>` : ''}` : ''}<span class="grow"></span><button class="btn small ghost" data-dt="text">Als Text bearbeiten</button></div>
+      <span class="muted small">Einheit an den ersten Wert hängen, z. B. „30 %“ oder „12 Mio.“ · ★ hebt eine Zeile hervor${M.multi ? '' : ''}.</span></div>`;
+  }
+
   // Alles, was auf der Folie liegt, mit Entfernen-Knopf
   function elemsBlock(sl){
     const ic = (sl.icons || []).map((k, i) => ({k, i})).filter(x => x.k && IC.LIB.has(x.k));
-    const items = ic.map(x => `<span class="el-chip"><span class="ic">${IC.svg(x.k, 'currentColor', 'var(--acc)')}</span>${esc(IC.LIB.get(x.k).label)}<button data-icdel="${x.i}" title="Symbol entfernen" aria-label="Symbol entfernen">✕</button></span>`);
+    const items = ic.map(x => `<span class="el-chip"><span class="ic">${IC.svg(x.k, 'currentColor', accCss())}</span>${esc(IC.LIB.get(x.k).label)}<button data-icdel="${x.i}" title="Symbol entfernen" aria-label="Symbol entfernen">✕</button></span>`);
     if (sl.img) items.push(`<span class="el-chip"><span class="ic">🖼</span>Bild<button data-imgdel title="Bild entfernen" aria-label="Bild entfernen">✕</button></span>`);
     return `<div class="field"><span>Elemente auf dieser Folie</span>${items.length ? `<div class="el-chips">${items.join('')}</div>` : '<span class="muted small">Noch keine – Symbole kommen über „Elemente“ oder die Vorschläge.</span>'}</div>`;
   }
@@ -282,7 +343,7 @@
       ${sl.imgFit !== 'contain' ? `<div class="row wrap"><span class="muted small">Ausschnitt</span><div class="seg" id="imgPosX">${[['0', 'links'], ['0.5', 'Mitte'], ['1', 'rechts']].map(([v, l]) => `<button data-v="${v}" class="${+v === pos.x ? 'on' : ''}">${l}</button>`).join('')}</div><div class="seg" id="imgPosY">${[['0', 'oben'], ['0.5', 'Mitte'], ['1', 'unten']].map(([v, l]) => `<button data-v="${v}" class="${+v === pos.y ? 'on' : ''}">${l}</button>`).join('')}</div></div>` : ''}` : ''}</div>`;
   }
   function iconField(sl){
-    const L = H.layout(sl.layout), sv = k => IC.svg(k, 'currentColor', 'var(--acc)');
+    const L = H.layout(sl.layout), sv = k => IC.svg(k, 'currentColor', accCss());
     if (L.icon === 'one'){
       const k = (sl.icons || [])[0], sg = IC.suggest(H.plain(sl.title + ' ' + sl.text + ' ' + sl.kicker)).filter(x => x !== k).slice(0, 8);
       return `<div class="field"><span>${k ? 'Symbol tauschen' : 'Symbol hinzufügen'}</span>
@@ -322,12 +383,17 @@
   }
   function renderLib(){
     const q = $('#icSearch').value, list = IC.search(q).filter(i => !icCat || i.cat === icCat);
-    $('#icCats').innerHTML = ['', ...IC.CATS].map(c => `<button data-c="${esc(c)}" class="${c === icCat ? 'on' : ''}">${c || 'Alle'}</button>`).join('');
+    const all = IC.list(), cnt = c => all.filter(i => i.cat === c).length;
+    $('#icCats').innerHTML = `<option value="">Alle Kategorien (${all.length})</option>` + IC.CATS.map(c => `<option value="${esc(c)}"${c === icCat ? ' selected' : ''}>${esc(c)} (${cnt(c)})</option>`).join('');
     const sl = cur(), L = sl && H.layout(sl.layout);
     $('#icHint').textContent = !sl ? '' : L.icon === 'one' ? 'Antippen setzt das Symbol neben den Text der Folie.' : L.icon === 'lines' ? (lineTarget != null ? `Antippen setzt das Symbol in Zeile ${lineTarget + 1}.` : 'Antippen setzt das Symbol in die nächste Zeile ohne Symbol – sonst kommt eine neue Zeile dazu.') : 'Diese Folienart hat keinen Symbol-Platz – beim Antippen wechselt sie auf eine passende Art.';
     $('#icOnSlide').innerHTML = sl ? `<div class="mini-prev"><canvas></canvas></div>${elemsBlock(sl)}` : '';
     miniPrev();
-    $('#icGrid').innerHTML = list.map(i => `<button data-ic="${i.k}" title="${esc(i.label)}"><span class="svgw">${IC.svg(i.k, 'currentColor', 'var(--acc)')}</span><span>${esc(i.label)}</span></button>`).join('') || '<p class="muted small">Nichts gefunden.</p>';
+    const btn = i => `<button data-ic="${i.k}" title="${esc(i.label)}"><span class="svgw">${IC.svg(i.k, 'currentColor', accCss())}</span><span>${esc(i.label)}</span></button>`;
+    // Ohne Suche und ohne Auswahl: nach Kategorien gegliedert
+    $('#icGrid').innerHTML = !list.length ? '<p class="muted small">Nichts gefunden.</p>'
+      : q.trim() || icCat ? `<div class="ic-grid">${list.map(btn).join('')}</div>`
+      : IC.CATS.map(c => `<h4 class="ic-cat"><button data-c="${esc(c)}">${esc(c)}</button></h4><div class="ic-grid">${list.filter(i => i.cat === c).map(btn).join('')}</div>`).join('');
   }
 
   // ───────── Text-Bereich: markieren und übernehmen ─────────
@@ -501,6 +567,7 @@
       <div class="pe"><canvas id="peCv"></canvas>
         <div class="full seg" id="peSample"><button data-v="d" class="on">dunkle Folie</button><button data-v="l">helle Folie</button><button data-v="cur">aktuelle Folie</button></div>
         <label class="field full"><span>Name</span><input id="peName"></label>
+        <div class="field full"><span>Farbe (feste Töne – oder unten eigene Akzentfarben wählen)</span><div id="peAcc">${accRow(base, base.accent)}</div></div>
         <div class="field"><span>Farben dunkler Folien</span><div class="colors">${col('dark', 'bg', 'Grund')}${col('dark', 'fg', 'Schrift')}${col('dark', 'mute', 'Neben')}${col('dark', 'acc', 'Akzent')}</div></div>
         <div class="field"><span>Farben heller Folien</span><div class="colors">${col('light', 'bg', 'Grund')}${col('light', 'fg', 'Schrift')}${col('light', 'mute', 'Neben')}${col('light', 'acc', 'Akzent')}</div></div>
         <label class="field"><span>Überschriften</span>${fsel('head')}</label><label class="field"><span>Fließtext</span>${fsel('body')}</label>
@@ -522,7 +589,10 @@
       const r = await H.render(sl, w * 2, h * 2, {k: sample === 'cur' && cur() ? idx(cur()) : 0, profile: pr, imgUrl}); cv.width = w * 2; cv.height = h * 2; cv.getContext('2d').drawImage(r, 0, 0); }, 60); };
     q('#peName').value = pr.name; q('#peHandle').value = pr.handle || '';
     q('#peHandle').oninput = e => { pr.handle = e.target.value.trim(); draw(); };
-    m.querySelectorAll('[data-col]').forEach(i => { const [t, k] = i.dataset.col.split('.'); i.value = pr.colors[t][k]; i.oninput = () => { pr.colors[t][k] = i.value; draw(); }; });
+    const colIn = () => m.querySelectorAll('[data-col]').forEach(i => { const [t, k] = i.dataset.col.split('.'), a = k === 'acc' && accOf(pr); i.value = a ? a[t] : pr.colors[t][k]; });
+    m.querySelectorAll('[data-col]').forEach(i => { const [t, k] = i.dataset.col.split('.'); i.oninput = () => { if (k === 'acc' && pr.accent){ const a = accOf(pr); pr.colors.dark.acc = a.dark; pr.colors.light.acc = a.light; pr.accent = null; q('#peAcc').innerHTML = accRow(pr, null); }
+      pr.colors[t][k] = i.value; if (k === 'acc') q('#peAcc').innerHTML = accRow(pr, null); draw(); }; });
+    colIn(); wireAcc(q('#peAcc'), k => { pr.accent = k; colIn(); draw(); });
     m.querySelectorAll('[data-font]').forEach(s => { const r = s.dataset.font; if (![...s.options].some(o => o.value === pr.fonts[r])) s.append(new Option(pr.fonts[r], pr.fonts[r])); s.value = pr.fonts[r]; s.onchange = () => { pr.fonts[r] = s.value; draw(); }; });
     const segs = () => m.querySelectorAll('[data-seg]').forEach(g => g.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === pr[g.dataset.seg])));
     m.querySelectorAll('[data-seg]').forEach(g => g.onclick = e => { const b = e.target.closest('button'); if (!b) return; pr[g.dataset.seg] = b.dataset.v; segs(); draw(); });
@@ -538,11 +608,13 @@
       pr.name = q('#peName').value.trim() || 'Eigenes Profil';
       if (pr.builtin){ pr.id = 'p' + H.uid(); pr.builtin = false; if (pr.name === base.name) pr.name += ' – eigene Variante'; }
       const i = userProfs.findIndex(x => x.id === pr.id); if (i >= 0) userProfs[i] = pr; else userProfs.push(pr); await saveProfiles();
-      closeModal(); useProfile(pr); toast(`Designprofil „${pr.name}“ gespeichert`);
+      closeModal(); useProfile(pr, false); toast(`Designprofil „${pr.name}“ gespeichert`);
     };
     draw();
   }
-  function useProfile(pr){ layThumbs.clear(); commit(() => { deck.profile = clone(pr); }); }
+  // Profilwechsel behält die gewählte Farbe (außer das Profil bringt selbst eine mit oder kommt aus dem Profil-Editor)
+  function useProfile(pr, keepAcc = true){ layThumbs.clear(); const a = deck && deck.profile && deck.profile.accent;
+    commit(() => { deck.profile = clone(pr); if (keepAcc && a && !pr.accent) deck.profile.accent = a; }); }
 
   // ───────── Dialoge ─────────
   function modal(html, cls = ''){
@@ -562,6 +634,7 @@
   $('#edName').onchange = e => { if (EMBED) return; commit(() => { deck.name = e.target.value.trim() || 'Präsentation'; }, {render: false}); };
   $('#edFmt').onchange = e => { viewFmt = null; layThumbs.clear(); commit(() => { deck.format = e.target.value; }); };
   $('#edProf').onchange = e => { const pr = allProfiles().find(x => x.id === e.target.value); if (pr){ useProfile(pr); toast(`Designprofil „${pr.name}“`); } };
+  $('#edAcc').onclick = accPopover;
   $('#profEdit').onclick = () => editProfile(profile(), false);
   $('#profNew').onclick = () => editProfile(profile(), true);
   $('#undoBtn').onclick = doUndo; $('#redoBtn').onclick = doRedo;
@@ -584,8 +657,8 @@
     if (e.target.closest('[data-imgdel]')) commit(() => { sl.img = null; }); });
   $('#inspTabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; inspTab = b.dataset.t; renderInsp(); };
   $('#icSearch').oninput = renderLib;
-  $('#icCats').onclick = e => { const b = e.target.closest('[data-c]'); if (!b) return; icCat = b.dataset.c; renderLib(); };
-  $('#icGrid').onclick = e => { const b = e.target.closest('[data-ic]'); if (b) placeIcon(b.dataset.ic); };
+  $('#icCats').onchange = e => { icCat = e.target.value; renderLib(); $('#icGrid').scrollIntoView({block: 'nearest'}); };
+  $('#icGrid').onclick = e => { const c = e.target.closest('[data-c]'); if (c){ icCat = c.dataset.c; renderLib(); return; } const b = e.target.closest('[data-ic]'); if (b) placeIcon(b.dataset.ic); };
   $('#mobTabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; mobPane(b.dataset.p); };
   function mobPane(p){ if (p === 'paneList' && innerWidth > 600 && innerWidth <= 900) p = 'paneStage'; $$('#mobTabs button').forEach(x => x.classList.toggle('on', x.dataset.p === p)); $$('.ed-body>.pane').forEach(x => x.classList.toggle('mob-on', x.id === p)); if (p === 'paneStage') renderStage(); }
   mobPane('paneStage');
@@ -616,15 +689,16 @@
 
   // Bearbeiten-Felder
   let typingT = 0, typingSnap = null;
-  $('#inspFolie').addEventListener('focusin', e => { if (e.target.dataset.f && !EMBED) typingSnap = JSON.stringify(deck); });
+  const isField = el => !!(el && el.dataset && (el.dataset.f || (el.closest && el.closest('#dtab'))));
+  $('#inspFolie').addEventListener('focusin', e => { if (isField(e.target) && !EMBED) typingSnap = JSON.stringify(deck); });
   $('#inspFolie').addEventListener('input', e => {
-    const f = e.target.dataset.f, sl = cur(); if (!f || !sl) return;
-    sl[f] = e.target.value;
+    const f = e.target.dataset.f, sl = cur(); if (!sl || !isField(e.target)) return;
+    if (f) sl[f] = e.target.value; else { const M = modelFromDom(); if (M) writeModel(sl, M); }
     clearTimeout(typingT); typingT = setTimeout(() => { renderStage(); miniPrev(); const it = $(`.sl-item[data-id="${sl.id}"] img`); if (it) thumb(sl, projFmt(), 160).then(u => it.src = u);
       if (EMBED) pushHost(); else { deck.updated = Date.now(); scheduleSave(); } }, 180);
   });
   $('#inspFolie').addEventListener('focusout', e => {
-    if (!e.target.dataset.f) return;
+    if (!isField(e.target)) return;
     if (!EMBED && typingSnap && typingSnap !== JSON.stringify(deck)){ undo.push(typingSnap); redo = []; } typingSnap = null;
     const sl = cur(); if (sl && ['icons', 'prozess'].includes(sl.layout) || (sl && H.layout(sl.layout).icon === 'one')) setTimeout(() => { if (!document.activeElement || !document.activeElement.dataset || !document.activeElement.dataset.f) renderInsp(); }, 120);
     renderList();
@@ -633,6 +707,20 @@
     const sl = cur(); if (!sl) return;
     const l = e.target.closest('[data-l]'); if (l){ if (innerWidth <= 900) layOpen = false; commit(() => { sl.layout = l.dataset.l; }); return; }
     const th = e.target.closest('#thSeg button'); if (th){ commit(() => { sl.dark = th.dataset.v === 'auto' ? null : th.dataset.v === 'dark'; }); layThumbs.clear(); return; }
+    const dt = e.target.closest('[data-dt],[data-hi],[data-rdel]');
+    if (dt){ const M = modelFromDom() || tableModel(sl, H.layout(sl.layout)), d = dt.dataset;
+      if (d.dt === 'text'){ dataAsText = true; renderInsp(); return; }
+      commit(() => {
+        if (d.hi != null) M.rows[+d.hi].hi = !M.rows[+d.hi].hi;
+        if (d.rdel != null) M.rows.splice(+d.rdel, 1);
+        if (d.dt === 'row') M.rows.push({label: '', hi: false, vals: M.rows.length ? M.rows[M.rows.length - 1].vals.map(() => '') : ['']});
+        if (d.dt === 'col'){ M.k++; M.series.push(''); M.rows.forEach(r => r.vals.push('')); }
+        if (d.dt === 'uncol' && M.k > 1){ M.k--; M.series.pop(); M.rows.forEach(r => r.vals.pop()); }
+        writeModel(sl, M);
+      });
+      if (d.dt === 'row') setTimeout(() => { const ins = $$('#dtab [data-cl]'); if (ins.length) ins[ins.length - 1].focus(); }, 30);
+      return; }
+    if (e.target.id === 'dtTable'){ dataAsText = false; renderInsp(); return; }
     const set = e.target.closest('[data-icset]'); if (set){ commit(() => { sl.icons = [set.dataset.icset]; }); return; }
     const del = e.target.closest('[data-icdel]'); if (del){ e.stopPropagation(); commit(() => { sl.icons = (sl.icons || []).slice(); sl.icons[+del.dataset.icdel] = null; while (sl.icons.length && !sl.icons[sl.icons.length - 1]) sl.icons.pop(); }); return; }
     const line = e.target.closest('[data-line]'); if (line){ lineTarget = +line.dataset.line; inspTab = 'elemente'; renderInsp(); if (innerWidth <= 900) mobPane('paneInsp'); return; }
@@ -732,9 +820,13 @@
   function chooseProfileFirst(){
     const list = allProfiles(), f = projFmt();
     const m = modal(`<h3>Welches Design sollen die Folien haben?</h3><p class="muted small">Das lässt sich jederzeit oben unter „Design“ ändern. Eigene Profile legst du dort mit „＋“ an.</p>
+      <div class="field"><span>Farbe</span><div id="cpAcc">${accRow(H.BUILTIN[0], null)}</div></div>
       <div class="prof-grid">${list.map(p => `<button data-p="${esc(p.id)}"><canvas></canvas><b>${esc(p.name)}</b></button>`).join('')}</div>`, 'wide');
-    m.querySelectorAll('[data-p]').forEach(b => { const pr = list.find(x => x.id === b.dataset.p), cv = b.querySelector('canvas'), w = 400, h = Math.round(w * f.H / f.W);
-      H.render(H.newSlide({...SAMPLES.titel, dark: true}), w, h, {profile: pr}).then(r => { cv.width = w; cv.height = h; cv.getContext('2d').drawImage(r, 0, 0); });
-      b.onclick = () => { closeModal(); useProfile(pr); toast(`Designprofil „${pr.name}“`); }; });
+    let acc = null;
+    const paint = () => m.querySelectorAll('[data-p]').forEach(b => { const pr = {...list.find(x => x.id === b.dataset.p)}, cv = b.querySelector('canvas'), w = 400, h = Math.round(w * f.H / f.W); if (acc) pr.accent = acc;
+      H.render(H.newSlide({...SAMPLES.titel, icons: ['megafon'], dark: true}), w, h, {profile: pr}).then(r => { cv.width = w; cv.height = h; cv.getContext('2d').drawImage(r, 0, 0); }); });
+    paint(); wireAcc(m.querySelector('#cpAcc'), k => { acc = k; paint(); });
+    m.querySelectorAll('[data-p]').forEach(b => { const pr = list.find(x => x.id === b.dataset.p);
+      b.onclick = () => { closeModal(); useProfile(acc ? {...pr, accent: acc} : pr, false); toast(`Designprofil „${pr.name}“`); }; });
   }
 })();

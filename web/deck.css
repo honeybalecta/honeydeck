@@ -120,6 +120,11 @@ body.embed .standalone-only{display:none!important}
 .sugg button,.ic-grid button{background:var(--p1);border:1px solid var(--line);border-radius:8px;cursor:pointer;color:var(--fg);padding:6px}
 .sugg button{width:44px;height:44px}
 .sugg svg,.ic-grid svg{width:100%;height:100%;display:block}
+.ic-cats{width:100%!important}
+.ic-cat{margin:8px 0 0;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;position:sticky;top:-1px;background:var(--panebg,var(--bg));padding:4px 0;z-index:1}
+.ic-cat button{background:none;border:0;padding:0;font:inherit;color:var(--mute);cursor:pointer;text-transform:inherit;letter-spacing:inherit}
+.ic-cat button:hover{color:var(--acc)}
+.ic-cat button::after{content:' ›'}
 .ic-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px}
 .ic-grid button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px 5px;font-size:10px;color:var(--mute);line-height:1.15;text-align:center}
 .ic-grid button span{display:block;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -227,3 +232,25 @@ body.embed .ed-bar .name-in{pointer-events:none}
   .stage-pane{padding:6px;gap:6px}
   .mini-prev canvas{max-height:36vh}
 }
+
+/* Farbschema */
+.acc-row{display:flex;flex-wrap:wrap;gap:6px}
+.acc-row button{display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--p1);border:1px solid var(--line);border-radius:9px;padding:7px 6px 5px;min-width:56px;cursor:pointer;color:var(--mute);font-size:11px}
+.acc-row button.on{border-color:var(--fg);color:var(--fg);box-shadow:0 0 0 1px var(--fg) inset}
+.acc-row i,.acc-btn i{display:block;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,var(--d) 0 50%,var(--l) 50% 100%);border:1px solid #0003}
+.acc-btn i{width:18px;height:18px;margin:auto}
+.acc-pop{position:fixed;z-index:60;background:var(--p2);border:1px solid var(--line);border-radius:10px;padding:12px;max-width:min(360px,calc(100vw - 16px));box-shadow:0 10px 30px #0008}
+.acc-pop b{font-size:13px}.acc-pop p{margin:2px 0 10px}
+
+/* Werte-Tabelle für Diagramme */
+.dt-wrap{overflow-x:auto;margin:0 -2px}
+.dtab{border-collapse:separate;border-spacing:3px;width:100%;font-size:12px}
+.dtab th{font-weight:500;color:var(--mute);text-align:left;font-size:11px;padding:0 2px}
+.dtab th input{font-weight:500}
+.dtab input{padding:5px 6px!important;min-width:56px;font-size:12px}
+.dtab td:nth-child(2) input{min-width:90px}
+.dtab td:first-child,.dtab td:last-child{width:26px}
+.dt-hi,.dt-del{width:26px;height:28px;border:1px solid var(--line);border-radius:6px;background:var(--p1);color:var(--mute);cursor:pointer;padding:0}
+.dt-hi.on{color:var(--acc);border-color:var(--acc)}
+.dt-del:hover{color:var(--acc)}
+.dt-acts{margin-top:6px;gap:6px}
