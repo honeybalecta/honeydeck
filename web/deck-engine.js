@@ -187,7 +187,8 @@
   const num = s => { const m = String(s || '').replace(/\s/g, '').replace(/\.(?=\d{3}\b)/g, '').replace(',', '.').match(/-?\d+(\.\d+)?/); return m ? parseFloat(m[0]) : NaN; };
 
   // ───────── Zeichnen ─────────
-  // opts: k (Position im Deck, für hell/dunkel), profile, safe (0..0.3, freier Streifen unten), imgUrl(uri) → URL, report {}
+  // opts: k (Position im Deck, für hell/dunkel), profile, safe (0..0.3, freier Streifen unten), imgUrl(uri) → URL, report {},
+  //       step (Aufbau Schritt für Schritt: nur die ersten step Einträge zeichnen; fehlt: die ganze Folie)
   async function render(sl, W, H, opts = {}){
     const pr = opts.profile || BUILTIN[0], rep = opts.report || {};
     await fonts(pr);
@@ -214,6 +215,9 @@
     const pf = pr.pad === 'eng' ? 0.75 : pr.pad === 'weit' ? 1.4 : 1;
     let px = Math.max(6 * u, W * (port ? 0.08 : 0.065)) * pf, py = 7 * u * pf, cw = W - 2 * px;
     const L = sl.layout;
+    // Aufbau Schritt für Schritt: mit opts.step = j erscheinen nur die ersten j Einträge. Gesetzt wird immer die ganze Folie,
+    // damit beim Aufbau nichts springt.
+    const stepN = opts.step == null ? null : Math.max(0, opts.step | 0), vis = i => stepN == null || i < stepN;
     const CEN = pr.align === 'center' && ['titel', 'zahl', 'begriff', 'zitat', 'vollbild', 'aussage', 'frage', 'anteil', 'menschen', 'waffel', 'tacho'].includes(L);
     const icons = (sl.icons || []).filter(Boolean);
     try { ctx.letterSpacing = '0px'; } catch(_){}
@@ -302,7 +306,7 @@
       if (h > area){ for (; sz > 0.8 * u; sz *= 0.93){ h = measure(sz); if (h <= area) break; } if (h > area) rep.over = true; else rep.small = true; }
       h = measure(sz);
       const gap = sz * 0.7; y += Math.max(0, (area - h) / 2.5);
-      rows.forEach(r => { ctx.fillStyle = C.acc; ctx.fillRect(bx, y + sz * 0.3, sz * 0.5, sz * 0.5); drawText(ctx, {lines: r, size: sz}, bx + 6 * u, y - sz * 0.1, 1.3, C.fg, 'left', C.acc); y += r.length * sz * 1.3 + gap; });
+      rows.forEach((r, i) => { if (vis(i)){ ctx.fillStyle = C.acc; ctx.fillRect(bx, y + sz * 0.3, sz * 0.5, sz * 0.5); drawText(ctx, {lines: r, size: sz}, bx + 6 * u, y - sz * 0.1, 1.3, C.fg, 'left', C.acc); } y += r.length * sz * 1.3 + gap; });
     } else if (L === 'zitat'){
       ctx.font = LORA(700)(30 * u); ctx.fillStyle = C.acc; ctx.textAlign = AL; ctx.textBaseline = 'alphabetic';
       const qa = ctx.measureText('“').actualBoundingBoxAscent || 21 * u; ctx.fillText('“', CEN ? AX : bx - 1.5 * u, top + 1 * u + qa);
@@ -340,6 +344,7 @@
       const cols = [sl.text || '', sl.text2 || ''], gap = 5 * u;
       const colW = port ? cw : (cw - gap) / 2, colH = port ? (bottom - y - gap) / 2 : bottom - y;
       cols.forEach((t, i) => {
+        if (!vis(i)) return;
         const x0 = port ? px : px + i * (colW + gap), y0 = port ? y + i * (colH + gap) : y;
         ctx.fillStyle = C.soft; ctx.fillRect(x0, y0, colW, colH);
         ctx.fillStyle = i === 0 ? C.acc : C.fg; ctx.fillRect(x0, y0, colW, 0.7 * u);
@@ -369,6 +374,7 @@
       const P0 = cands.map(plan).reduce((p, q) => q.score > p.score ? q : p);
       const {cols, gapX, gapY, cellW, cellH, vertical, s, tsz} = P0;
       items.forEach((t, i) => {
+        if (!vis(i)) return;
         const r = Math.floor(i / cols), c = i % cols, x0 = px + c * (cellW + gapX), y0 = y + r * (cellH + gapY);
         ctx.font = tFont(tsz); const f = vertical ? fit(ctx, t, tFont, cw - s - 5 * u, cellH * 0.95, tsz / (tFont.scale || 1), tsz / (tFont.scale || 1), 1.2) : fit(ctx, t, tFont, cellW - u, cellH - s - 3 * u, tsz / (tFont.scale || 1), tsz / (tFont.scale || 1), 1.2);
         const blockH = vertical ? Math.max(s, f.lines.length * f.size * 1.2) : s + 3 * u + f.lines.length * f.size * 1.2;
@@ -380,7 +386,7 @@
         ctx.font = tFont(f.size);
         if (vertical) drawText(ctx, f, x0 + s + 5 * u, y0 + (cellH - f.lines.length * f.size * 1.2) / 2, 1.2, C.fg, 'left', C.acc);
         else drawText(ctx, f, x0 + cellW / 2, iy + s + 3 * u, 1.2, C.fg, 'center', C.acc);
-        if (proc && i < n - 1){   // Pfeil zum nächsten Schritt
+        if (proc && i < n - 1 && vis(i + 1)){   // Pfeil zum nächsten Schritt (erscheint mit ihm)
           ctx.fillStyle = C.acc;
           if (vertical){ const ax = ix + s / 2, ay = y0 + cellH - (cellH - s) / 2 + gapY * 0.1, len = (cellH - s) + gapY * 0.8; if (len > 2 * u){ ctx.fillRect(ax - 0.3 * u, ay + 0.6 * u, 0.6 * u, Math.max(0, len - 2.6 * u)); ctx.beginPath(); ctx.moveTo(ax - 1.4 * u, ay + len - 2.2 * u); ctx.lineTo(ax + 1.4 * u, ay + len - 2.2 * u); ctx.lineTo(ax, ay + len - 0.4 * u); ctx.fill(); } }
           else { const ax = x0 + cellW + gapX * 0.15, ay = iy + s / 2, len = gapX * 0.7; ctx.fillRect(ax, ay - 0.3 * u, len - 1.6 * u, 0.6 * u); ctx.beginPath(); ctx.moveTo(ax + len - 2 * u, ay - 1.3 * u); ctx.lineTo(ax + len, ay); ctx.lineTo(ax + len - 2 * u, ay + 1.3 * u); ctx.fill(); }
@@ -396,7 +402,7 @@
         ctx.fillStyle = C.line; ctx.fillRect(lx - 0.3 * u, y + rowH * 0.15, 0.6 * u, Math.max(0, area - rowH * 0.3));
         let dsz = Infinity, tsz = Infinity;
         const fs = ev.map(([d, t]) => { const a = fit(ctx, d, INTER(800), dw, rowH * 0.4, 5.5 * u, 2 * u, 1.05), b = fit(ctx, t, INTER(400), dw, rowH * 0.5, 4.2 * u, 1.8 * u, 1.25); dsz = Math.min(dsz, a.size); tsz = Math.min(tsz, b.size); return [a, b]; });
-        ev.forEach(([d, t], i) => { const y0 = y + i * rowH;
+        ev.forEach(([d, t], i) => { if (!vis(i)) return; const y0 = y + i * rowH;
           ctx.fillStyle = C.acc; ctx.beginPath(); ctx.arc(lx, y0 + rowH * 0.22, 1.4 * u, 0, 7); ctx.fill();
           ctx.font = INTER(800)(dsz); const fa = {lines: wrap(ctx, d, dw), size: dsz}; let yy = drawText(ctx, fa, px + 6 * u, y0 + rowH * 0.22 - dsz * 0.6, 1.05, C.acc, 'left');
           ctx.font = INTER(400)(tsz); drawText(ctx, {lines: wrap(ctx, t, dw), size: tsz}, px + 6 * u, yy + 0.8 * u, 1.25, C.fg, 'left', C.acc); void fs; });
@@ -405,7 +411,7 @@
         ctx.fillStyle = C.line; ctx.fillRect(px, ly - 0.3 * u, cw, 0.6 * u);
         let dsz = Infinity, tsz = Infinity;
         ev.forEach(([d, t]) => { dsz = Math.min(dsz, fit(ctx, d, INTER(800), colW - 3 * u, area * 0.3, 7 * u, 2 * u, 1.05).size); tsz = Math.min(tsz, fit(ctx, t, INTER(400), colW - 3 * u, area * 0.55, 4.4 * u, 1.6 * u, 1.25).size); });
-        ev.forEach(([d, t], i) => { const x0 = px + i * colW;
+        ev.forEach(([d, t], i) => { if (!vis(i)) return; const x0 = px + i * colW;
           ctx.fillStyle = C.acc; ctx.beginPath(); ctx.arc(x0 + 1.4 * u, ly, 1.4 * u, 0, 7); ctx.fill();
           ctx.font = INTER(800)(dsz); const fa = {lines: wrap(ctx, d, colW - 3 * u), size: dsz}; drawText(ctx, fa, x0, ly - 2.5 * u - fa.lines.length * dsz * 1.05, 1.05, C.acc, 'left');
           ctx.font = INTER(400)(tsz); drawText(ctx, {lines: wrap(ctx, t, colW - 3 * u), size: tsz}, x0, ly + 3 * u, 1.25, C.fg, 'left', C.acc); });
@@ -422,6 +428,7 @@
       if (sz < 2 * u) rep.small = true; if (h > area) rep.over = true;
       y += Math.max(0, (area - h) / 2.5);
       rows.forEach((r, i) => { const it = items[i], s = sz * 1.15, iy = y + sz * 0.05;
+        if (!vis(i)){ y += r.length * sz * 1.3 + sz * 0.8; return; }
         if (it.k && IC()) IC().draw(ctx, it.k === 'ja' ? 'haken' : 'kreuz', px, iy, s, it.k === 'ja' ? C.acc : C.mute, null);
         else { ctx.fillStyle = C.acc; ctx.fillRect(px + s * 0.3, iy + s * 0.35, s * 0.4, s * 0.4); }
         ctx.font = INTER(600)(sz); drawText(ctx, {lines: r, size: sz}, px + sz * 1.9, y - sz * 0.05, 1.3, it.k === 'nein' ? C.mute : C.fg, 'left', C.acc); y += r.length * sz * 1.3 + sz * 0.8; });
@@ -434,7 +441,7 @@
       const cwid = (cw - gap * (cols - 1)) / cols, ch = (area - gap * (rowsN - 1)) / rowsN;
       let nsz = Infinity, tsz = Infinity;
       ps.forEach(([a, b]) => { nsz = Math.min(nsz, fit(ctx, a, INTER(900), cwid - 4 * u, ch * 0.5, 16 * u, 3 * u, 1).size); tsz = Math.min(tsz, fit(ctx, b, INTER(500), cwid - 4 * u, ch * 0.4, 3.8 * u, 1.6 * u, 1.3).size); });
-      ps.forEach(([a, b], i) => { const x0 = px + (i % cols) * (cwid + gap), y0 = y + Math.floor(i / cols) * (ch + gap);
+      ps.forEach(([a, b], i) => { if (!vis(i)) return; const x0 = px + (i % cols) * (cwid + gap), y0 = y + Math.floor(i / cols) * (ch + gap);
         ctx.fillStyle = C.soft; ctx.fillRect(x0, y0, cwid, ch); ctx.fillStyle = i === 0 ? C.acc : C.line; ctx.fillRect(x0, y0, 0.8 * u, ch);
         ctx.font = INTER(900)(nsz); const fa = {lines: wrap(ctx, a, cwid - 4 * u), size: nsz}; ctx.font = INTER(500)(tsz); const fb = {lines: wrap(ctx, b, cwid - 4 * u), size: tsz};
         const bh = fa.lines.length * nsz + (b ? 2 * u + fb.lines.length * tsz * 1.3 : 0); let yy = y0 + Math.max(2 * u, (ch - bh) / 2);
@@ -450,7 +457,7 @@
       let lsz = Infinity;
       ps.forEach(p => { lsz = Math.min(lsz, fit(ctx, p.a, INTER(600), port ? cw : lw, rowH * (port ? 0.38 : 0.7), 4 * u, 1.6 * u, 1.15).size); });
       const vsz = Math.min(lsz * 1.05, rowH * 0.45);
-      ps.forEach((p, i) => { const y0 = y + i * rowH, bh = Math.min(rowH * (port ? 0.38 : 0.62), 9 * u), by = port ? y0 + rowH * 0.48 : y0 + (rowH - bh) / 2;
+      ps.forEach((p, i) => { if (!vis(i)) return; const y0 = y + i * rowH, bh = Math.min(rowH * (port ? 0.38 : 0.62), 9 * u), by = port ? y0 + rowH * 0.48 : y0 + (rowH - bh) / 2;
         ctx.font = INTER(600)(lsz); const fa = {lines: wrap(ctx, p.a, port ? cw : lw), size: lsz};
         drawText(ctx, fa, px, port ? y0 + rowH * 0.42 - fa.lines.length * lsz * 1.15 : y0 + (rowH - fa.lines.length * lsz * 1.15) / 2, 1.15, p.hi ? C.acc : C.fg, 'left');
         ctx.font = INTER(800)(vsz); const vw = ctx.measureText(p.b).width;
@@ -778,6 +785,23 @@
     return best && best.score >= (q.length <= 3 ? 0.99 : 0.55) ? best : null;
   }
 
-  G.HoneyDeck = {version: '1.0.0', ACCENTS, accent, parseData, CHART, LAYOUTS, LBL, layout, FORMATS, format, BUILTIN, FONT_CHOICES, colors, isDark, mix, fonts, render, check,
+  // ───────── Aufbau Schritt für Schritt ─────────
+  // Diese Folienarten können nach und nach erscheinen (sl.build). stepTexts liefert je Schritt den Text, der mit ihm dazukommt –
+  // HoneyCut sucht ihn im gesprochenen Text und legt den Schritt auf den Satzanfang. render(…, {step: j}) zeichnet die ersten j Schritte.
+  const BUILD = ['liste', 'zwei', 'icons', 'prozess', 'zeitstrahl', 'checkliste', 'zahlen', 'balken'];
+  function stepTexts(sl){
+    const L = sl && sl.layout, join = (a, b) => (a + ' ' + b).trim();
+    if (L === 'zwei') return [sl.text || '', sl.text2 || ''];
+    if (L === 'liste') return lines(sl.text);
+    if (L === 'checkliste') return lines(sl.text).map(t => t.replace(/^([+✓✔\-−–✗✘]|x(?=\s))\s*/i, ''));
+    if (L === 'icons' || L === 'prozess') return lines(sl.text).slice(0, 8);
+    if (L === 'zeitstrahl') return pairs(sl.text).slice(0, 8).map(([d, t]) => join(d, t));
+    if (L === 'zahlen') return pairs(sl.text).slice(0, 4).map(([a, b]) => join(a, b));
+    if (L === 'balken') return pairs(sl.text).slice(0, 10).map(([a, b]) => join(a.replace(/^\*\s*/, ''), b));
+    return [];
+  }
+  const steps = sl => Math.max(1, stepTexts(sl).length);
+
+  G.HoneyDeck = {version: '1.3.0', ACCENTS, accent, parseData, CHART, LAYOUTS, LBL, layout, FORMATS, format, BUILTIN, FONT_CHOICES, colors, isDark, mix, fonts, render, check, BUILD, steps, stepTexts,
     newSlide, newDeck, normSlide, normDeck, guess, fromText, textToSlides, sentences, group, subsToText, slideText, matchCue, plain, uid, loadImg};
 })();

@@ -21,6 +21,7 @@ Ohne HoneyDeck bleibt der eingebaute Folien-Reiter von HoneyCut unverändert.
 - **Diagramme:** Säulen (auch gruppiert), Balken, Linie, Fläche, Kreis, Ring, Gestapelt (100 %), Anteil, Raster (10 × 10) und Skala. Die Werte trägt man in eine Tabelle ein (Zeilen, Reihen, ★ zum Hervorheben) oder schreibt sie als Text.
 - **Rund 500 Piktogramme** in 25 Kategorien (Protest & Bewegung, Politik & Wahlen, Recht & Justiz, Staat & Sicherheit, Krieg & Frieden, Migration & Grenzen, Arbeit & Gewerkschaft, Wirtschaft & Geld, Wohnen & Stadt, Medien & Kommunikation, Digital & Technik, Menschen & Gesellschaft, Bildung & Wissen, Gesundheit & Pflege, Umwelt & Klima, Energie, Verkehr, Essen & Landwirtschaft, Natur & Tiere, Alltag & Dinge, Zeit & Orte, Diagramme & Zahlen, Zeichen, Pfeile, Formen). Ohne Suche zeigt die Bibliothek alles nach Kategorien gegliedert. Antippen setzt das Symbol automatisch an die passende Stelle der Folie. Passende Symbole werden zum Text vorgeschlagen.
 - **Hervorheben:** `*so*` im Text färbt den Teil in der Akzentfarbe.
+- **Aufbau Schritt für Schritt:** Stichpunkte, Zwei Seiten, Piktogramme, Ablauf, Zeitstrahl, Richtig/Falsch, Kennzahlen und Balken können nach und nach erscheinen. Der Schalter liegt unter den Textfeldern; die Zahlen daneben zeigen jeden Schritt auf der Folie. Beim Export entsteht je Schritt ein Bild (`folie-03-schritt-1.png` …) oder eine PDF-Seite, in HoneyCut erscheinen die Schritte passend zum gesprochenen Text.
 - **Formate:** Quer 16:9, Hoch 9:16, Quadrat 1:1, Hoch 4:5, Quer 4:3, A4 quer. Jede Folie wird für jedes Format neu gesetzt; Texte werden verkleinert statt abgeschnitten. Wird ein Text dabei sehr klein, zeigt HoneyDeck eine Warnung beim Format.
 - **Farbe der Präsentation:** Rot, Grün, Petrol, Blau, Violett, Magenta, Orange, Ocker – oder die Farbe des Designprofils. Wählbar beim Anlegen, jederzeit änderbar über den Farbpunkt in der Leiste; gilt für alle Folien.
 - **Designprofile:** dieselben wie in HoneyCut (Honey Balecta Standard, Hell & ruhig, Kontrast) plus eigene – Farben, Schriften, Größen, Ausrichtung, Rand, Kennung unten rechts.
@@ -41,6 +42,7 @@ Eine eigene, aufgeräumte Ansicht für Touch und schmale Fenster:
 ## In HoneyCut
 
 - Der Reiter „Folien“ zeigt HoneyDeck mit dem Transkript des Projekts. Rückgängig, Speichern und „Als B-Roll einsetzen“ laufen über HoneyCut, ebenso N im Studio.
+- **Aufbau im Video (ab HoneyCut 2.35):** Eine Folie mit „Schritt für Schritt aufbauen“ liegt als ein Element in der Zeitleiste. HoneyCut sucht die Einträge im gesprochenen Text und lässt jeden Schritt mit seinem Satz erscheinen; die Zeiten lassen sich im Studio verschieben.
 - **Folien importieren:** Importierte Folien (z. B. eine .honeydeck-Datei oder eine PowerPoint) suchen sich ihre Stelle im Transkript selbst – über das Feld `cue` oder, wenn es fehlt, über ihren Text. Danach lassen sie sich gleich als B-Roll einsetzen.
 
 ## Das Format .honeydeck
@@ -76,10 +78,12 @@ JSON, UTF-8. Alles außer `app` und `slides` ist optional.
 | `dark` | `true`/`false` erzwingt dunkel/hell, sonst abwechselnd |
 | `img`, `imgFit`, `imgPos` | Bild als data-URL; `cover` (füllen) oder `contain` (ganz zeigen); Ausschnitt 0…1 |
 | `cue` | gesprochener Satz, bei dem die Folie erscheinen soll – damit findet HoneyCut die Stelle im Transkript |
+| `build` | `true`: Die Folie baut sich Schritt für Schritt auf (`liste`, `zwei`, `icons`, `prozess`, `zeitstrahl`, `checkliste`, `zahlen`, `balken`) |
 
 ## Entwicklung
 
 - `web/` – Oberfläche: `deck-engine.js` (Folienarten, Formate, Text→Folien, Zuordnung zum Transkript), `deck-icons.js` (Piktogramme), `deck-io.js` (ZIP, PDF, Importe), `deck-app.js` (Editor)
+- Aufbau Schritt für Schritt in der Engine: `HoneyDeck.steps(folie)` nennt die Zahl der Schritte, `HoneyDeck.stepTexts(folie)` ihre Texte, `HoneyDeck.render(folie, W, H, {step: j})` zeichnet die ersten `j` Einträge (ohne `step` die ganze Folie)
 - `fonts/` – Schriften (dieselben wie in HoneyCut, Lizenzen in `fonts/LIZENZ.md`)
 - `build.py ZIEL` – stellt Oberfläche und Schriften zusammen (Web, Android, Windows)
 - `android/` – Android-App (WebView, Paket `de.honeybalecta.honeydeck`), `desktop/` – Windows-Programm (pywebview) und Installer

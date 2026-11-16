@@ -63,6 +63,12 @@
   const safe = f => EMBED && (!f || f.k === 'projekt') ? HOST.safe() : 0;
   const imgUrl = uri => !uri ? null : /^(data:|blob:|https?:)/.test(uri) ? uri : EMBED ? HOST.mediaUrl(uri) : null;
   const renderOpts = (sl, f, extra = {}) => ({k: idx(sl), profile: profile(), safe: safe(f), imgUrl, ...extra});
+  // Aufbau Schritt für Schritt: Folienarten mit mehreren Einträgen können nach und nach erscheinen (sl.build).
+  // stepView = {id, j} zeigt auf der Bühne die ersten j Einträge der Folie.
+  let stepView = null;
+  const canBuild = sl => !!sl && H.BUILD.includes(sl.layout);
+  const stepsOf = sl => canBuild(sl) && sl.build ? H.steps(sl) : 1;
+  const stepOf = sl => stepView && sl && stepView.id === sl.id && stepView.j < stepsOf(sl) ? stepView.j : null;
 
   // Rückgängig: eigenständig über Momentaufnahmen, eingebettet über HoneyCut
   function commit(fn, opts = {}){
@@ -226,7 +232,7 @@
     deck.slides.forEach((sl, k) => {
       const d = document.createElement('div'); d.className = 'sl-item' + (sl.id === curId ? ' on' : ''); d.dataset.id = sl.id; d.draggable = true;
       const t = EMBED ? HOST.times(sl) : null, linked = sl.a != null;
-      d.innerHTML = `<img alt=""><div class="sl-meta"><b>${k + 1} <span class="warn" data-warn></span></b><span>${esc(H.layout(sl.layout).n)}</span>
+      d.innerHTML = `<img alt=""><div class="sl-meta"><b>${k + 1}${stepsOf(sl) > 1 ? `<i class="st" title="Die Folie baut sich Schritt für Schritt auf">${stepsOf(sl)} Schritte</i>` : ''} <span class="warn" data-warn></span></b><span>${esc(H.layout(sl.layout).n)}</span>
         <span class="muted">${t ? HOST.fmtTime(t.s) : linked ? '⛓ verknüpft' : EMBED ? 'nicht verknüpft' : ''}${EMBED && HOST.placed(sl) ? ' · eingesetzt' : ''}</span></div>
         <button class="sl-more" data-a="more" aria-label="Aktionen für Folie ${k + 1}">⋯</button>
         <div class="sl-acts"><button data-a="up" title="nach vorn">↑</button><button data-a="down" title="nach hinten">↓</button><button data-a="dup" title="duplizieren">⧉</button><button data-a="del" title="löschen">✕</button></div>`;
@@ -245,7 +251,7 @@
     $('#paneStage').style.setProperty('--ar', (f.H / f.W).toFixed(4)); paintNav();
     const st = $('.stage'), maxW = Math.max(320, st.clientWidth || 960), maxH = Math.max(200, st.clientHeight || 540);
     const sc = Math.min(maxW / f.W, maxH / f.H), w = Math.round(f.W * sc * (devicePixelRatio || 1)), h = Math.round(f.H * sc * (devicePixelRatio || 1));
-    const r = await H.render(sl, w, h, renderOpts(sl, f));
+    const sj = stepOf(sl), r = await H.render(sl, w, h, renderOpts(sl, f, sj != null ? {step: sj} : {}));
     if (tok !== stageTok) return;
     cv.width = w; cv.height = h; cv.style.aspectRatio = `${f.W} / ${f.H}`; paintNav();
     cv.getContext('2d').drawImage(r, 0, 0);
@@ -305,6 +311,7 @@
       <div class="row wrap"><span class="muted small">Hintergrund</span><div class="seg" id="thSeg"><button data-v="auto" class="${th === 'auto' ? 'on' : ''}">abwechselnd</button><button data-v="dark" class="${th === 'dark' ? 'on' : ''}">dunkel</button><button data-v="light" class="${th === 'light' ? 'on' : ''}">hell</button></div></div>
       ${L.f.map(f => f === 'img' ? imgField(sl) : L.data && !dataAsText && (f === 'text' || f === 'text2') ? (f === 'text' ? dataTable(sl, L) : '') : `<label class="field"><span>${esc(lbl(f))}</span>${f === 'text' || f === 'text2' ? `<textarea data-f="${f}" rows="${['liste', 'zwei', 'icons', 'prozess', 'zeitstrahl', 'checkliste', 'zahlen', 'balken'].includes(sl.layout) || f === 'text2' ? 5 : 3}"></textarea>` : `<input type="text" data-f="${f}">`}</label>`).join('')}
       ${L.data && dataAsText ? '<button class="btn small ghost" id="dtTable">▦ Als Tabelle bearbeiten</button>' : ''}
+      ${buildBlock(sl)}
       ${H.layout(sl.layout).icon === 'lines' ? '' : elemsBlock(sl)}
       ${iconField(sl)}
       <p class="muted small">Tipp: *Sternchen* um ein Wort färben es in der Akzentfarbe.</p>
@@ -314,6 +321,14 @@
     box.querySelectorAll('[data-f]').forEach(i => { i.value = sl[i.dataset.f] || ''; });
     miniPrev();
     box.querySelectorAll('[data-l]').forEach(b => layoutPreview(b.dataset.l).then(u => { const im = b.querySelector('img'); if (im) im.src = u; }));
+  }
+  // Schalter „Schritt für Schritt aufbauen“ mit den Schritten zum Ansehen
+  function buildBlock(sl){
+    if (!canBuild(sl)) return '';
+    const n = H.steps(sl), on = !!sl.build, sj = stepOf(sl);
+    return `<div class="build"><label class="chk small"><input type="checkbox" id="slBuild"${on ? ' checked' : ''}> Schritt für Schritt aufbauen</label>
+      ${on && n > 1 ? `<div class="seg" id="stepSeg" aria-label="Schritt ansehen">${[...Array(n).keys()].map(i => `<button data-j="${i + 1}" class="${(sj == null ? n : sj) === i + 1 ? 'on' : ''}" title="${i + 1 < n ? `Schritt ${i + 1} ansehen` : 'Ganze Folie ansehen'}">${i + 1}</button>`).join('')}</div>` : ''}
+      ${on ? `<p class="muted small">${n > 1 ? (EMBED ? `Im Video erscheinen die ${n} Schritte nacheinander, passend zum gesprochenen Text.` : 'Beim Export entsteht je Schritt ein Bild oder eine Seite.') : 'Ab zwei Einträgen baut sich die Folie auf.'}</p>` : ''}</div>`;
   }
   // ───────── Diagramm-Werte als Tabelle ─────────
   let dataAsText = false;
@@ -538,6 +553,7 @@
       <div class="field"><span>Formate – jede Folie wird für jedes Format neu gesetzt</span><div class="fmt-checks">${fl.map(f => `<label class="chk"><input type="checkbox" value="${f.k}" ${f.k === projFmt().k ? 'checked' : ''}> ${esc(f.n)}${f.k === 'projekt' ? ` (${f.W}×${f.H})` : ''}</label>`).join('')}</div></div>
       <div class="field"><span>Folien</span><div class="seg" id="exScope"><button data-v="all" class="on">alle ${deck.slides.length}</button>${sl ? `<button data-v="cur">nur Folie ${idx(sl) + 1}</button>` : ''}</div></div>
       ${EMBED ? '' : '<label class="chk small"><input type="checkbox" id="exSafe"> unten Platz für Untertitel lassen</label>'}
+      ${deck.slides.some(s => stepsOf(s) > 1) ? '<p class="muted small">Folien mit Aufbau ergeben je Schritt ein Bild oder eine Seite.</p>' : ''}
       <div class="progress hidden" id="exProg"><i></i></div>
       <div class="acts"><button class="btn ghost" data-x>Schließen</button><button class="btn" id="exHd" title="Zum Weiterbearbeiten in HoneyDeck oder HoneyCut">.honeydeck</button><button class="btn" id="exPdf">PDF</button><button class="btn primary" id="exPng">Bilder (PNG)</button></div>`);
     let scope = 'all';
@@ -546,16 +562,19 @@
     const list = () => scope === 'cur' && sl ? [sl] : deck.slides;
     const prog = v => { const p = m.querySelector('#exProg'); p.classList.remove('hidden'); p.querySelector('i').style.width = Math.round(v * 100) + '%'; };
     const sOf = f => m.querySelector('#exSafe') && m.querySelector('#exSafe').checked ? (f.H > f.W ? 0.2 : 0.17) : safe(f);
+    // Bilder einer Folie: baut sie sich auf, je Schritt eines – das letzte ist die ganze Folie
+    const shots = s => { const k = stepsOf(s); return [...Array(k).keys()].map(i => i + 1 < k ? {opt: {step: i + 1}, tag: `-schritt-${i + 1}`} : {opt: {}, tag: ''}); };
+    const count = ss => ss.reduce((a, s) => a + shots(s).length, 0);
     m.querySelector('#exHd').onclick = () => { const d = clone(deck); d.slides = list().map(s => { const c = clone(s); delete c.media; delete c.mediaKey; return c; });
       if (EMBED){ d.slides.forEach(s => { if (s.img && !/^data:/.test(s.img)) s.img = null; }); d.name = HOST.name(); d.format = H.FORMATS.reduce((p, q) => Math.abs(q.W / q.H - projFmt().W / projFmt().H) < Math.abs(p.W / p.H - projFmt().W / projFmt().H) ? q : p).k; d.id = H.uid(); d.app = 'honeydeck'; d.v = 1; }
       saveBlob(new Blob([JSON.stringify(d)], {type: 'application/json'}), safeName(deck.name || (EMBED && HOST.name())) + '.honeydeck'); };
     m.querySelector('#exPng').onclick = async () => {
       const fs = chosen(); if (!fs.length) return toast('Mindestens ein Format wählen');
-      const ss = list(), files = []; let n = 0;
-      for (const f of fs) for (const s of ss){
-        const cv = await H.render(s, f.W, f.H, renderOpts(s, f, {safe: sOf(f)}));
-        const name = (fs.length > 1 ? (f.k === 'projekt' ? 'projekt' : f.k.replace(':', 'x')) + '/' : '') + `folie-${String(idx(s) + 1).padStart(2, '0')}.png`;
-        files.push({name, data: await IO.canvasBytes(cv)}); prog(++n / (fs.length * ss.length));
+      const ss = list(), files = [], all = fs.length * count(ss); let n = 0;
+      for (const f of fs) for (const s of ss) for (const q of shots(s)){
+        const cv = await H.render(s, f.W, f.H, renderOpts(s, f, {safe: sOf(f), ...q.opt}));
+        const name = (fs.length > 1 ? (f.k === 'projekt' ? 'projekt' : f.k.replace(':', 'x')) + '/' : '') + `folie-${String(idx(s) + 1).padStart(2, '0')}${q.tag}.png`;
+        files.push({name, data: await IO.canvasBytes(cv)}); prog(++n / all);
       }
       const base = safeName(deck.name || (EMBED && HOST.name()));
       if (files.length === 1) await saveBlob(new Blob([files[0].data], {type: 'image/png'}), `${base}-${files[0].name.split('/').pop()}`);
@@ -564,7 +583,8 @@
     };
     m.querySelector('#exPdf').onclick = async () => {
       const fs = chosen(); if (!fs.length) return toast('Ein Format wählen'); const f = fs[0], ss = list(), pages = []; let n = 0;
-      for (const s of ss){ const cv = await H.render(s, f.W, f.H, renderOpts(s, f, {safe: sOf(f)})); pages.push({jpeg: await IO.canvasBytes(cv, 'image/jpeg', 0.92), w: f.W, h: f.H}); prog(++n / ss.length); }
+      const all = count(ss);
+      for (const s of ss) for (const q of shots(s)){ const cv = await H.render(s, f.W, f.H, renderOpts(s, f, {safe: sOf(f), ...q.opt})); pages.push({jpeg: await IO.canvasBytes(cv, 'image/jpeg', 0.92), w: f.W, h: f.H}); prog(++n / all); }
       const k = 960 / Math.max(f.W, f.H);
       await saveBlob(IO.pdf(pages, Math.round(f.W * k), Math.round(f.H * k)), safeName(deck.name || (EMBED && HOST.name())) + (fs.length > 1 ? `-${f.k.replace(':', 'x')}` : '') + '.pdf');
       toast('PDF gespeichert' + (fs.length > 1 ? ` (Format ${f.n} – PDF hat ein Format je Datei)` : ''));
@@ -783,11 +803,13 @@
   $('#inspFolie').addEventListener('focusout', e => {
     if (!isField(e.target)) return;
     if (!EMBED && typingSnap && typingSnap !== JSON.stringify(deck)){ undo.push(typingSnap); redo = []; } typingSnap = null;
-    const sl = cur(); if (sl && ['icons', 'prozess'].includes(sl.layout) || (sl && H.layout(sl.layout).icon === 'one')) setTimeout(() => { if (!document.activeElement || !document.activeElement.dataset || !document.activeElement.dataset.f) renderInsp(); }, 120);
+    const sl = cur(); if (sl && ['icons', 'prozess'].includes(sl.layout) || (sl && H.layout(sl.layout).icon === 'one') || (sl && sl.build && canBuild(sl))) setTimeout(() => { if (!isField(document.activeElement)) renderInsp(); }, 120);
     renderList();
   });
   $('#inspFolie').addEventListener('click', e => {
     const sl = cur(); if (!sl) return;
+    if (e.target.id === 'slBuild'){ const on = e.target.checked; stepView = null; commit(() => { if (on) sl.build = true; else delete sl.build; }); return; }
+    const sb = e.target.closest('#stepSeg button'); if (sb){ const j = +sb.dataset.j; stepView = j < H.steps(sl) ? {id: sl.id, j} : null; renderInsp(); renderStage(); return; }
     const l = e.target.closest('[data-l]'); if (l){ if (isC()) layOpen = false; commit(() => { sl.layout = l.dataset.l; }); return; }
     const th = e.target.closest('#thSeg button'); if (th){ commit(() => { sl.dark = th.dataset.v === 'auto' ? null : th.dataset.v === 'dark'; }); layThumbs.clear(); return; }
     const dt = e.target.closest('[data-dt],[data-hi],[data-rdel]');
