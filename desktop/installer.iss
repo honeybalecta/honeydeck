@@ -24,6 +24,9 @@ WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 ChangesAssociations=yes
+; Läuft HoneyDeck noch – auch ein Fenster ohne Rückmeldung –, beendet der Installer es, statt alte Dateien stehen zu lassen
+CloseApplications=force
+RestartApplications=no
 
 [Languages]
 Name: "de"; MessagesFile: "compiler:Languages\German.isl"

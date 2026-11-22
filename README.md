@@ -89,3 +89,11 @@ JSON, UTF-8. Alles außer `app` und `slides` ist optional.
 - `android/` – Android-App (WebView, Paket `de.honeybalecta.honeydeck`), `desktop/` – Windows-Programm (pywebview) und Installer
 - Die Schnittstelle in HoneyCut ist `core/web/deck-host.js` im Repo honeybalecta/textschnitt (`window.HC_DECK_HOST`)
 - Builds: `.github/workflows/build.yml` (Android + Windows, Releases `android-v…` und `v…`), `pages.yml` (Web)
+
+## Windows: Speicher und Start (seit 1.3.1)
+
+- Die Oberfläche spricht das Programm nur über dessen Server an (`/__store/get|set|del|keys|save|opened`, nur 127.0.0.1, Kopfzeile `X-HoneyDeck` mit dem Schlüssel `k` aus der Adresse).
+- **Kein `js_api` für pywebview:** pywebview durchsucht ein solches Objekt beim Laden der Seite samt allen öffentlichen Eigenschaften; stand dort das Fenster (`api.window`), lief die Suche durch das ganze native Fenster. Bei HoneyThumb hielt das den Start an („Keine Rückmeldung“, Nov. 2026). Für Megabytes ist die Brücke ohnehin zu langsam.
+- Selbstheilung beim Start: frühere Fenster ohne Rückmeldung werden beendet; nach einem nicht durchgekommenen Start wird das WebView2-Profil verworfen. Protokoll: `%APPDATA%\HoneyDeck\start.log`.
+- Startanzeige in `index.html`: „HoneyDeck startet …“, nach sieben Sekunden ohne Übersicht der Grund.
+

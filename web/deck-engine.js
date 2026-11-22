@@ -802,6 +802,6 @@
   }
   const steps = sl => Math.max(1, stepTexts(sl).length);
 
-  G.HoneyDeck = {version: '1.3.0', ACCENTS, accent, parseData, CHART, LAYOUTS, LBL, layout, FORMATS, format, BUILTIN, FONT_CHOICES, colors, isDark, mix, fonts, render, check, BUILD, steps, stepTexts,
+  G.HoneyDeck = {version: '1.3.1', ACCENTS, accent, parseData, CHART, LAYOUTS, LBL, layout, FORMATS, format, BUILTIN, FONT_CHOICES, colors, isDark, mix, fonts, render, check, BUILD, steps, stepTexts,
     newSlide, newDeck, normSlide, normDeck, guess, fromText, textToSlides, sentences, group, subsToText, slideText, matchCue, plain, uid, loadImg};
 })();

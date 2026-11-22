@@ -14,8 +14,13 @@
   function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 3200); }
 
   // ───────── Ablage: Windows über das Programm, sonst IndexedDB ─────────
+  // Windows: Das Programm reicht Speicher, „Speichern unter“ und die beim Start übergebene Datei über seinen eigenen Server (/__store/…, mit dem Schlüssel k aus der Adresse).
+  // Die Brücke von pywebview nutzt die Oberfläche nicht mehr: Für Megabytes ist sie zu langsam, und ihr Aufbau beim Laden der Seite konnte das Fenster anhalten (wie bei HoneyThumb, Nov. 2026).
   const Store = (() => {
     let api = null;
+    const KEY = (location.search.match(/[?&]k=([\w-]+)/) || [])[1] || '';
+    const http = DESKTOP && KEY ? async (op, q, body) => { const r = await fetch(`/__store/${op}?${q}`, {method: body == null ? 'GET' : 'POST', headers: {'X-HoneyDeck': KEY}, body, cache: 'no-store'}); if (!r.ok) throw new Error('Der Speicher antwortet nicht (' + r.status + ').'); return r; } : null;
+    const enc = encodeURIComponent;
     const ready = new Promise(res => {
       if (!DESKTOP) return res();
       if (window.pywebview && window.pywebview.api) { api = window.pywebview.api; return res(); }
@@ -26,11 +31,11 @@
     const db = () => dbP ||= new Promise((res, rej) => { const r = indexedDB.open('honeydeck', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
     const tx = async (mode, fn) => { const d = await db(); return new Promise((res, rej) => { const t = d.transaction('kv', mode), s = t.objectStore('kv'); const r = fn(s); t.oncomplete = () => res(r && r.result); t.onerror = () => rej(t.error); }); };
     return {
-      async get(k){ await ready; if (api){ const s = await api.store_get(k); return s ? JSON.parse(s) : null; } return tx('readonly', s => s.get(k)); },
-      async set(k, v){ await ready; if (api) return api.store_set(k, JSON.stringify(v)); return tx('readwrite', s => s.put(v, k)); },
-      async del(k){ await ready; if (api) return api.store_del(k); return tx('readwrite', s => s.delete(k)); },
-      async keys(prefix){ await ready; if (api) return (await api.store_keys(prefix)) || []; const all = await tx('readonly', s => s.getAllKeys()); return (all || []).filter(k => String(k).startsWith(prefix)); },
-      get desktop(){ return !!api; },
+      async get(k){ if (http){ const t = await (await http('get', 'key=' + enc(k))).text(); return t ? JSON.parse(t) : null; } await ready; if (api){ const s = await api.store_get(k); return s ? JSON.parse(s) : null; } return tx('readonly', s => s.get(k)); },
+      async set(k, v){ if (http) return void await http('set', 'key=' + enc(k), JSON.stringify(v)); await ready; if (api) return api.store_set(k, JSON.stringify(v)); return tx('readwrite', s => s.put(v, k)); },
+      async del(k){ if (http) return void await http('del', 'key=' + enc(k), ''); await ready; if (api) return api.store_del(k); return tx('readwrite', s => s.delete(k)); },
+      async keys(prefix){ if (http) return (await (await http('keys', 'prefix=' + enc(prefix))).json()) || []; await ready; if (api) return (await api.store_keys(prefix)) || []; const all = await tx('readonly', s => s.getAllKeys()); return (all || []).filter(k => String(k).startsWith(prefix)); },
+      get desktop(){ return !!api; }, http,
     };
   })();
 
@@ -38,6 +43,7 @@
   const blobB64 = b => new Promise(res => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.readAsDataURL(b); });
   async function saveBlob(blob, name){
     if (EMBED && HOST.saveFile) return HOST.saveFile(name, blob);
+    if (Store.http){ const p = await (await Store.http('save', 'name=' + encodeURIComponent(name), blob)).text(); if (p) toast('Gespeichert: ' + p); return; }
     if (Store.desktop && window.pywebview.api.save_file){ const p = await window.pywebview.api.save_file(name, await blobB64(blob)); if (p) toast('Gespeichert: ' + p); return; }
     if (window.DeckNative && window.DeckNative.saveFile){ const r = window.DeckNative.saveFile(name, blob.type || 'application/octet-stream', await blobB64(blob)); if (r) toast(r); return; }
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 30000);
@@ -137,7 +143,7 @@
 
   // ───────── Übersicht ─────────
   async function showHome(){
-    deck = null; $('#ed').classList.add('hidden'); $('#home').classList.remove('hidden');
+    deck = null; $('#ed').classList.add('hidden'); $('#home').classList.remove('hidden'); if ($('#boot')) $('#boot').style.display = 'none';
     const keys = await Store.keys('deck:'), list = [];
     for (const k of keys){ try { const d = await Store.get(k); if (d) list.push(d); } catch(_){} }
     list.sort((a, b) => (b.updated || 0) - (a.updated || 0));
@@ -927,7 +933,8 @@
       const m = location.hash.match(/deck=([\w-]+)/), d = m ? await Store.get('deck:' + m[1]) : null;
       if (d) openDeck(d); else await showHome();
       const o = location.hash.match(/open=([\w=-]+)/);
-      if (o && Store.desktop){ try { const f = await window.pywebview.api.open_file(o[1]); if (f) importFiles([b64File(f.name, f.data)]); } catch(e){ toast(e.message); } }
+      if (o && Store.http){ try { const r = await Store.http('opened', ''); importFiles([new File([await r.blob()], decodeURIComponent(r.headers.get('X-Name') || 'Datei'))]); } catch(e){ toast('Die Datei ließ sich nicht öffnen.'); } }
+      else if (o && Store.desktop){ try { const f = await window.pywebview.api.open_file(o[1]); if (f) importFiles([b64File(f.name, f.data)]); } catch(e){ toast(e.message); } }
     }
   })();
   // Beim ersten Öffnen ohne Profil: Design wählen (wie bisher in HoneyCut)

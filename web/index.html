@@ -10,6 +10,29 @@
 </head>
 <body>
 
+<!-- ───────── Startanzeige: steht, bis Übersicht oder Editor erscheinen. Kommt das Programm nicht in Gang, nennt sie nach wenigen Sekunden den Grund.
+     Absichtlich in altem JavaScript ohne die übrigen Dateien – sie muss auch dann laufen, wenn diese nicht laden oder das Fenster sie nicht versteht. ───────── -->
+<div id="boot" style="position:fixed;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;padding:24px;background:#131312;color:#A9A397;font:15px/1.5 system-ui,Segoe UI,sans-serif;z-index:5"><div id="bootBox" style="max-width:640px">HoneyDeck startet …</div></div>
+<script>
+(function(){
+  var errs = [], t0 = new Date().getTime(); window.__hdBoot = {errs: errs};
+  function up(){ var h = document.getElementById('home'), e = document.getElementById('ed'); return (h && h.className.indexOf('hidden') < 0) || (e && e.className.indexOf('hidden') < 0); }
+  function esc(s){ return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  function facts(){ return ['Fenster: ' + navigator.userAgent, 'Dateien geladen: Rechenkern ' + (window.HoneyDeck ? 'ja' : 'nein') + ', Editor ' + (window.HD ? 'ja' : 'nein'), 'Windows-Programm: ' + (/[?&]desktop=1/.test(location.search) ? 'ja' + (/[?&]k=/.test(location.search) ? ', mit Speicher-Schlüssel' : ', ohne Speicher-Schlüssel') : 'nein'), 'Nach ' + Math.round((new Date().getTime() - t0) / 1000) + ' s'].concat(errs.length ? errs : ['Keine Fehlermeldung der Seite']); }
+  function show(why){ var b = document.getElementById('boot'), x = document.getElementById('bootBox'); if (!b || !x || up()) return; var f = facts(), h = '<div style="color:#EDE7DA;font-size:19px;font-weight:600;margin-bottom:8px">HoneyDeck kommt nicht in Gang</div><div style="margin-bottom:12px">' + esc(why) + '</div>';
+    for (var i = 0; i < f.length; i++) h += '<div style="font-size:13px;margin:3px 0;word-break:break-word">' + esc(f[i]) + '</div>';
+    x.innerHTML = h + '<div style="margin-top:14px"><button onclick="location.reload()" style="background:#E5402A;color:#fff;border:0;border-radius:8px;padding:9px 16px;font:inherit;cursor:pointer">Neu laden</button></div>'; window.__hdBoot.shown = true;
+    try { var k = (location.search.match(/[?&]k=([\w-]+)/) || [])[1]; if (k && window.XMLHttpRequest){ var r = new XMLHttpRequest(); r.open('POST', '/__store/set?key=log:start'); r.setRequestHeader('X-HoneyDeck', k); r.send(JSON.stringify({why: why, facts: f, at: new Date().toISOString()})); } } catch (e) {}
+  }
+  window.addEventListener && window.addEventListener('error', function(ev){ var t = ev.target || {}; errs.push(t.tagName === 'SCRIPT' || t.tagName === 'LINK' ? 'Datei lädt nicht: ' + String(t.src || t.href).split('/').pop() : 'Fehler: ' + (ev.message || '?') + (ev.filename ? ' (' + String(ev.filename).split('/').pop().split('?')[0] + ':' + ev.lineno + ')' : '')); if (errs.length > 8) errs.length = 8; }, true);
+  window.addEventListener && window.addEventListener('unhandledrejection', function(ev){ var r = ev.reason; errs.push('Abgebrochen: ' + (r && r.message ? r.message : r)); if (errs.length > 8) errs.length = 8; });
+  if (/Trident|MSIE/.test(navigator.userAgent) || !window.Promise || !window.addEventListener) return void setTimeout(function(){ show('Dieses Fenster nutzt die alte Windows-Darstellung (Internet Explorer). HoneyDeck braucht „Microsoft Edge WebView2“ – bitte die WebView2-Laufzeit von Microsoft installieren oder reparieren und HoneyDeck neu starten.'); }, 300);
+  setTimeout(function(){ show(errs.length ? 'Beim Start ist ein Fehler aufgetreten. Bitte schick Claude ein Bildschirmfoto dieser Anzeige.' : 'Der Start dauert ungewöhnlich lange. Bitte schick Claude ein Bildschirmfoto dieser Anzeige.'); }, 7000);
+  var iv = setInterval(function(){ if (up()){ clearInterval(iv); var b = document.getElementById('boot'); if (b) b.style.display = 'none'; } }, 150);
+})();
+</script>
+
+
 <!-- ───────── Übersicht (nur eigenständig) ───────── -->
 <section id="home" class="screen hidden">
   <header class="bar">
